@@ -1,0 +1,2944 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blockly Web Builder</title>
+
+    <!-- External Libraries -->
+    <script src="https://unpkg.com/blockly@10.4.3/blockly.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@3.4.1/dist/css/bootstrap.min.css">
+
+    <!-- Styles -->
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+            transition: background-color 0.3s, color 0.3s;
+        }
+        
+        .content-wrapper {
+            display: flex;
+            flex: 1;
+            height: calc(100vh - 90px);
+            overflow: hidden;
+        }
+        
+        .top-bar {
+            height: 45px;
+            background-color: transparent;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            z-index: 100;
+            transition: background-color 0.3s, color 0.3s;
+        }
+        
+        .top-bar-buttons {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .btn.theme-toggle,
+        .btn.btn-info {
+            background-color: transparent;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            font-size: 1em;
+            padding: 6px 12px;
+            height: 40px;
+            color: inherit;
+        }
+        
+        .dark-mode .btn.btn-info {
+            border-color: #555;
+            color: #fff;
+        }
+        
+        .btn.btn-info:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        
+        .dark-mode .top-bar {
+            background-color: #1a1a1a;
+            border-bottom: 1px solid #333;
+        }
+
+        .sidebar {
+            width: 50%;
+            background: #f8f8f8;
+            padding: 10px;
+            border-right: 2px solid #ddd;
+            overflow-y: auto;
+            transition: background-color 0.3s, border-color 0.3s;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-header {
+            margin-bottom: 10px;
+        }
+
+        .sidebar-buttons {
+            display: flex;
+            gap: 5px;
+            margin-top: 5px;
+        }
+
+        .main-toggle {
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            height: 40px;
+         
+        }
+
+        .main-toggle .toggle-icon {
+            transition: transform 0.3s ease;
+        }
+
+        .main-toggle.collapsed .toggle-icon {
+            transform: rotate(180deg);
+        }
+
+        .main.collapsed {
+            display: none;
+        }
+
+        .sidebar.expanded {
+            width: 100%;
+        }
+
+        .resizer {
+            width: 8px;
+            height: 100%;
+            background: #ddd;
+            position: absolute;
+            right: 0;
+            top: 0;
+            cursor: col-resize;
+            z-index: 10;
+            transition: background-color 0.3s;
+        }
+
+        .resizer:hover, .resizer.active {
+            background: #aaa;
+        }
+
+        .resizer.dark-mode {
+            background: #444;
+        }
+
+        .resizer.dark-mode:hover, .resizer.dark-mode.active {
+            background: #666;
+        }
+
+        .main {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 10px;
+            transition: background-color 0.3s;
+            overflow-y: auto;
+        }
+
+        #blocklyDiv {
+            flex-grow: 1;
+            min-height: 600px;
+            width: 100%;
+        }
+
+        #preview {
+            border: 1px solid #ddd;
+            width: 100%;
+            height: 100%;
+            margin-top: 10px;
+            background-color: white;
+            transition: border-color 0.3s, background-color 0.3s;
+        }
+
+        .output-container {
+            display: flex;
+            gap: 20px;
+            margin-top: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .output-column {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            transition: all 0.3s ease;
+        }
+
+        .output-column.css-column.collapsed {
+            flex: 0;
+            width: 0;
+            overflow: hidden;
+            margin: 0;
+            padding: 0;
+            opacity: 0;
+        }
+
+        .output-column.html-column {
+            transition: all 0.3s ease;
+        }
+
+        .output-column.html-column.expanded {
+            flex: 2;
+        }
+
+        .output-header, .output-section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            align-items: center;
+           
+            width: 100%;
+        }
+        
+        h3 {
+            margin: 0;
+            font-size: 1.2em;
+            display: flex;
+            align-items: center;
+        }
+        
+        .preview-container {
+            position: relative;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .preview-label {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #999;
+            font-size: 1.2em;
+            pointer-events: none;
+            text-align: center;
+            width: 100%;
+        }
+        
+        #preview:not([srcdoc*="<html>"]) + .preview-label {
+            display: block;
+        }
+        
+        #preview[srcdoc*="<html>"] + .preview-label {
+            display: none;
+        }
+        
+        .header-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        
+        .copy-html-btn, .copy-css-btn {
+            background-color: transparent;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            font-size: 1em;
+            padding: 6px 12px;
+            height: 40px;
+            color: inherit;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-left: 8px;
+        }
+
+        .dark-mode .copy-html-btn, .dark-mode .copy-css-btn {
+            border-color: #555;
+            color: #fff;
+        }
+
+        .copy-html-btn:hover, .copy-css-btn:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .toggle-btn {
+            background-color: transparent;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            font-size: 1em;
+            padding: 6px 12px;
+            height: 40px;
+            color: inherit;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-left: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .dark-mode .toggle-btn {
+            border-color: #555;
+            color: #fff;
+        }
+
+        .toggle-btn:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .toggle-btn.collapsed .toggle-icon {
+            transform: rotate(180deg);
+        }
+        .theme-toggle.dark-mode{
+            border-color: #555;
+        }
+        .css-output-container {
+            transition: height 0.3s ease, opacity 0.3s ease;
+            overflow: hidden;
+        }
+
+        .css-output-container.collapsed {
+            height: 0;
+            opacity: 0;
+            margin: 0;
+        }
+
+        textarea, #codeOutput {
+            width: 100%;
+            height: 200px;
+            margin-top: 10px;
+            font-family: monospace;
+            transition: background-color 0.3s, color 0.3s;
+            border: 1px solid #ddd;
+            padding: 10px;
+            overflow-y: auto;
+            background-color: #fff;
+            color: #000;
+        }
+
+        #codeOutput {
+            white-space: pre-wrap;
+            overflow-x: scroll;
+            overflow-y: scroll;
+            max-width: 100%;    /* Prevent stretching beyond container width */
+            word-wrap: normal;  /* Ensure long words/code don't force wrap */
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+   
+
+        /* Dark Mode Styles */
+        body.dark-mode {
+            background-color: #1e1e1e;
+            color: #f0f0f0;
+        }
+
+        .sidebar.dark-mode {
+            background-color: #2d2d2d;
+            border-color: #444;
+        }
+
+        .main.dark-mode {
+            background-color: #1e1e1e;
+        }
+
+        #preview.dark-mode {
+            border-color: #444;
+            background-color: #fff; /* Keep preview background white for accurate rendering */
+        }
+
+        textarea.dark-mode, #codeOutput.dark-mode {
+            background-color: #2d2d2d;
+            color: #f0f0f0;
+            border-color: #444;
+        }
+
+        .btn-group .btn {
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        .btn-group .btn.dark-mode {
+            background-color: #2d2d2d;
+            color: #f0f0f0;
+            border-color: #444;
+        }
+
+        .btn-group .btn.dark-mode:hover {
+            background-color: #3d3d3d;
+        }
+
+        .blocklyToolboxDiv.dark-mode {
+            background-color: #2d2d2d;
+            color: #e0e0e0;
+        }
+
+        .blocklyMainBackground.dark-mode {
+            fill: #121212 !important;
+        }
+
+        /* Ensure the workspace background is properly set in dark mode */
+        body.dark-mode .blocklyMainBackground {
+            fill: #121212 !important;
+        }
+
+        /* Ensure grid lines are visible but subtle in dark mode */
+        body.dark-mode .blocklyGridPattern path {
+            stroke: rgba(255, 255, 255, 0.1) !important;
+        }
+
+        /* Fix for input fields in dark mode */
+        .blocklyWidgetDiv .blocklyHtmlInput {
+            color: #000 !important; /* Force black text in input fields */
+            background-color: #fff !important; /* Force white background */
+        }
+
+        /* Additional dark mode styles for dropdown fields */
+        .blocklyDropDownDiv {
+            background-color: #2d2d2d;
+            border-color: #444;
+        }
+
+        .blocklyDropDownDiv .goog-menuitem-content {
+            color: #f0f0f0;
+        }
+
+        .blocklyDropDownDiv .goog-menuitem-highlight, 
+        .blocklyDropDownDiv .goog-menuitem-hover {
+            background-color: #3d3d3d;
+        }
+
+        /* Keep the insert block area dark in dark mode */
+        body.dark-mode .blocklyInsertionMarker,
+        body.dark-mode .blocklyHighlightedConnectionPath,
+        body.dark-mode .blocklyPath.blocklyHighlightedConnectionPath {
+            fill: #444 !important;
+            stroke: #aaa !important;
+        }
+
+        body.dark-mode .blocklySelected > .blocklyPath {
+            stroke: #fff !important;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+
+        tr:hover {
+            background-color: #f1f1f1;
+        }
+
+        /* Scratch-style category icons */
+        .blocklyToolboxDiv .scratch-category {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: block;
+            margin: 0 auto 5px auto;
+            flex-shrink: 0;
+        }
+
+        .blocklyToolboxDiv .blocklyTreeRow {
+            display: flex !important;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 10px 5px;
+            min-height: 80px;
+            text-align: center;
+        }
+
+        .blocklyToolboxDiv .blocklyTreeRow .blocklyTreeRowContentContainer {
+            display: flex !important;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+        }
+
+        .blocklyToolboxDiv .blocklyTreeRow .blocklyTreeRowContentContainer .blocklyTreeRowContent {
+            display: flex !important;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .blocklyToolboxDiv .blocklyTreeRow .blocklyTreeLabel {
+            margin: 5px 0 0 0;
+            text-align: center;
+            word-break: break-word;
+            max-width: 100%;
+            padding: 0 5px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Top Bar -->
+    <div id="top-bar" class="top-bar">
+        <h2>Blockly Web Builder</h2>
+
+        <div class="top-bar-buttons">
+            <button onclick="newProject()" class="btn btn-danger" title="Clear workspace and start fresh">New Project</button>
+            <button onclick="toggleTheme()" class="btn btn-default theme-toggle">💡</button>
+            <button onclick="toggleMainArea()" class="btn btn-default main-toggle" title="Toggle Main Area Visibility">
+                <span class="toggle-icon">⌞ ⌝ </span>
+            </button>
+            <button onclick="downloadHTML()" class="btn btn-info">Download HTML & CSS</button>
+        </div>
+
+    </div>
+    
+    <!-- Main Content Wrapper -->
+    <div class="content-wrapper">
+    <!-- Sidebar with Toolbox -->
+    <div class="sidebar">
+        
+        <div id="blocklyDiv"></div>
+        <div class="resizer"></div>
+    </div>
+
+    <!-- Main Content Area -->
+    <div class="main">
+  
+     
+        <div class="output-container">
+            <div class="output-column html-column">
+                <div class="output-section-header">
+                    <h3>HTML Output</h3>
+                    <div class="header-actions">
+                        <button onclick="copyHtmlCode()" class="btn btn-success copy-html-btn" title="Copy HTML">Copy HTML</button>
+                        <button class="toggle-btn" onclick="toggleCssOutput()" title="Toggle CSS Output">CSS <span class="toggle-icon">&#x25BA;</span></button>
+                    </div>
+                </div>
+                <div id="codeOutput" contenteditable="false"></div>
+            </div>
+            <div class="output-column css-column">
+                <div class="output-header">
+                    <h3>CSS Output</h3>
+                    <button onclick="copyCssCode()" class="btn btn-success copy-css-btn" title="Copy CSS">Copy CSS</button>
+                </div>
+                <div id="cssOutputContainer" class="css-output-container">
+                    <textarea id="cssOutput" readonly></textarea>
+                </div>
+            </div>
+        </div>
+        <div class="preview-container">
+            
+            <div class="preview-label">Webpage Preview</div>
+            <iframe id="preview"></iframe>
+        </div>
+    </div>
+
+    <!-- Toolbox Definition -->
+    <xml id="toolbox" style="display: none">
+        <category name="Structure">
+            <block type="html_block"></block>
+            <block type="head_block"></block>
+            <block type="body_block"></block>
+            <block type="title_block"></block>
+            <block type="bootstrap_css_block"></block>
+        </category>
+        <category name="Layout">
+            <block type="div_block"></block>
+            <block type="header_block"></block>
+            <block type="nav_block"></block>
+            <block type="main_block"></block>
+            <block type="section_block"></block>
+            <block type="article_block"></block>
+            <block type="aside_block"></block>
+            <block type="footer_block"></block>
+            <block type="row_block"></block>
+            <block type="col_block"></block>
+            <block type="nav_item_block"></block>
+        </category>
+        <category name="Content Blocks">
+            <block type="heading"></block>
+            <block type="paragraph">
+                <statement name="CONTENT">
+                    <block type="text_block">
+                        <field name="TEXT">Plain text</field>
+                    </block>
+                </statement>
+            </block>
+            <block type="text_block"></block>
+            <block type="list_block"></block>
+        </category>
+        <category name="Media & Interactive">
+            <block type="image_block"></block>
+            <block type="anchor_block"></block>
+        </category>
+        <category name="Table">
+            <block type="table_block"></block>
+            <block type="table_row"></block>
+            <block type="table_cell"></block>
+        </category>
+        <category name="Styling">
+            <block type="style_block"></block>
+            <block type="css_block"></block>
+        </category>
+    </xml>
+
+    <!-- JavaScript -->
+    <script>
+        // Custom Blockly Theme for Dark Mode
+        const darkTheme = Blockly.Theme.defineTheme('darkTheme', {
+            'base': Blockly.Themes.Classic,
+            'componentStyles': {
+                'workspace': {
+                    'backgroundColor': '#222'
+                },
+                'toolbox': {
+                    'backgroundColor': '#2c2c2c',
+                    'color': '#e0e0e0'
+                },
+                'flyout': {
+                    'backgroundColor': '#2c2c2c',
+                    'color': '#e0f0f0'
+                },
+                'block': {
+                    'color': '#e0e0e0'
+                }
+            }
+        });
+        
+        // Custom Blockly Theme for Light Mode
+        const lightTheme = Blockly.Theme.defineTheme('lightTheme', {
+            'base': Blockly.Themes.Classic,
+            'componentStyles': {
+                'workspace': {
+                    'backgroundColor': '#f9f9f9'
+                },
+                'toolbox': {
+                    'backgroundColor': 'transparent ',
+                    'color': '#000000'
+                },
+                'flyout': {
+                    'backgroundColor': '#ffffff',
+                    'color': '#000000'
+                },
+                'block': {
+                    'color': '#000000'
+                }
+            }
+        });
+
+        // Category Colors - Specific colors for each category in the toolbox
+        const categoryColors = {
+            // New intuitive category color scheme
+            'Structure': '#3F51B5',           // Royal Blue
+            'Content Blocks': '#4CAF50',      // Medium Green
+            'Media & Interactive': '#FF9800', // Orange
+            'Layout': '#9C27B0',             // Medium Purple
+            'Table': '#009688',              // Teal
+            'Styling': '#F44336'             // Medium Red
+        };
+
+        // Centralized Block Colors - Now with dynamic getters for color sync
+        const blockColorSystem = {
+            colors: {
+                // Document Architecture - Blue
+                'html_block': '#3F51B5',    // HTML document - Royal Blue
+                'head_block': '#5C6BC0',    // Head section - Lighter Blue
+                'body_block': '#3949AB',    // Body section - Deeper Blue
+                'title_block': '#7986CB',   // Title element - Light Blue
+                'bootstrap_css_block': '#303F9F', // Bootstrap CSS - Deep Blue
+                
+                // Structural Layout - Purple
+                'div_block': '#9C27B0',     // Div containers - Medium Purple
+                'header_block': '#7B1FA2',  // Header - Deep Purple
+                'nav_block': '#8E24AA',     // Nav - Deep Purple
+                'main_block': '#AB47BC',    // Main - Medium Purple
+                'section_block': '#9C27B0', // Section - Medium Purple
+                'article_block': '#8E24AA', // Article - Deep Purple
+                'aside_block': '#9C27B0',   // Aside - Medium Purple
+                'footer_block': '#7B1FA2',  // Footer - Deep Purple
+                'navbar_block': '#AB47BC',  // Navbar - Medium Purple
+                'nav_item_block': '#CE93D8', // Nav Item - Light Purple
+                'row_block': '#BA68C8',     // Bootstrap Row - Light Purple
+                'col_block': '#CE93D8',     // Bootstrap Column - Lighter Purple
+                
+                // Content Blocks - Green
+                'paragraph': '#4CAF50',     // Paragraph - Medium Green
+                'heading': '#2E7D32',       // Headings (h1-h6) - Dark Green
+                'text_block': '#81C784',    // Text content - Light Green
+                'list_block': '#66BB6A',    // Lists (ul/ol) - Bright Green
+                'list_item_block': '#A5D6A7', // List items - Light Green
+                
+                // Media & Interactive - Orange/Yellow
+                'image_block': '#FFA000',   // Images - Amber
+                'anchor_block': '#FF9800',  // Anchor/links - Orange
+                
+                // Table - Teal
+                'table_block': '#009688',   // Table container - Teal
+                'table_row': '#26A69A',     // Table row - Light Teal
+                'table_cell': '#4DB6AC',    // Table cell - Lighter Teal
+                
+                // Styling - Red
+                'style_block': '#F44336',   // Style/CSS - Medium Red
+                'css_block': '#E57373',     // CSS rules - Light Red
+                'css_rule_block': '#C62828' // Individual CSS rule - Deep Red
+            },
+            getColor: function(blockType) {
+                return this.colors[blockType] || '#ddd';
+            },
+            setColor: function(blockType, color) {
+                if (this.colors.hasOwnProperty(blockType)) {
+                    this.colors[blockType] = color;
+                    // Trigger workspace refresh to update block colors
+                    if (typeof workspace !== 'undefined') {
+                        const blocks = workspace.getAllBlocks();
+                        blocks.forEach(block => {
+                            if (block.type === blockType) {
+                                block.setColour(color);
+                            }
+                        });
+                    }
+                }
+            }
+        };
+
+        // Initialize HTML Generator
+        const htmlGenerator = new Blockly.Generator('HTML');
+
+        htmlGenerator.scrub_ = function(block, code, opt_thisOnly) {
+            const nextBlock = block.nextConnection && block.nextConnection.targetBlock();
+            if (nextBlock && !opt_thisOnly) {
+                return code + htmlGenerator.blockToCode(nextBlock);
+            }
+            return code;
+        };
+
+        // Block Definitions with Colors
+        // The blockColorSystem object has been moved to the top of the script
+        // and now includes all color definitions in one place
+
+        // Helper function to extract color from HTML/CSS
+        function extractColorFromOutput(blockType) {
+            const codeOutput = document.getElementById('codeOutput').innerText;
+            const cssOutput = document.getElementById('cssOutput').value;
+            
+            // Add specific color extraction logic based on block type
+            // This is a simple example - you can expand based on needs
+            let color = '';
+            if (blockType.includes('style') || blockType.includes('css')) {
+                const colorMatch = cssOutput.match(/color:\s*(#[0-9a-fA-F]{6}|#[0-9a-fA-F]{3})/);
+                if (colorMatch) color = colorMatch[1];
+            } else {
+                const colorMatch = codeOutput.match(/color="(#[0-9a-fA-F]{6}|#[0-9a-fA-F]{3})"/);
+                if (colorMatch) color = colorMatch[1];
+            }
+            
+            return color || blockColorSystem.getColor(blockType);
+        }
+
+        // Block Definitions (Updated to use blockColorSystem)
+        Blockly.Blocks['html_block'] = {
+            init: function() {
+                this.appendDummyInput()
+                    .appendField("HTML Document");
+                this.appendStatementInput("head")
+                    .setCheck(null)
+                    .appendField("Head");
+                this.appendStatementInput("body")
+                    .setCheck(null)
+                    .appendField("Body");
+                this.setColour(blockColorSystem.getColor('html_block'));
+                this.setTooltip("The root HTML document element");
+                this.setHelpUrl("");
+            }
+        };
+
+        Blockly.Blocks['head_block'] = {
+            init: function() {
+                this.appendDummyInput().appendField("<head>");
+                this.appendStatementInput("content").setCheck("HeadContent").appendField("Content");
+                this.appendDummyInput().appendField("</head>");
+                this.setColour(blockColorSystem.getColor('head_block'));
+                this.setTooltip("Head Block");
+                this.setPreviousStatement(true, "head_block");
+                this.setNextStatement(false);
+            }
+        };
+
+        Blockly.Blocks['body_block'] = {
+            init: function() {
+                this.appendDummyInput()
+                    .appendField("<body>");
+                this.appendStatementInput("content")
+                    .setCheck(["BodyContent", "InlineContent"]).appendField("Content");
+                this.appendDummyInput()
+                    .appendField("</body>");
+                this.setColour(blockColorSystem.getColor('body_block'));
+                this.setTooltip("Body Block");
+                this.setPreviousStatement(true, "body_block");
+                this.setNextStatement(false);
+            }
+        };
+
+        Blockly.Blocks['title_block'] = {
+            init: function() {
+                this.appendDummyInput()
+                    .appendField("<title>")
+                    .appendField(new Blockly.FieldTextInput("My Page"), "TEXT")
+                    .appendField("</title>");
+                this.setPreviousStatement(true, "HeadContent");
+                this.setNextStatement(true, "HeadContent");
+                this.setColour(blockColorSystem.getColor('title_block'));
+                this.setTooltip("Page Title");
+            }
+        };
+
+        Blockly.Blocks['div_block'] = {
+            init: function() {
+                this.appendDummyInput()
+                    .appendField("<div>")
+                    .appendField("id:")
+                    .appendField(new Blockly.FieldTextInput(""), "ID")
+                    .appendField("class:")
+                    .appendField(new Blockly.FieldTextInput(""), "CLASS");
+                
+                // Add Bootstrap container dropdown
+                this.appendDummyInput('CONTAINER_INPUT')
+                    .appendField("container:")
+                    .appendField(new Blockly.FieldDropdown([
+                        ["none", ""],
+                        ["container", "container"],
+                        ["container-fluid", "container-fluid"]
+                    ]), "CONTAINER");
+
+                this.appendStatementInput("content")
+                    .setCheck(null);
+                this.appendDummyInput()
+                    .appendField("</div>");
+                this.setPreviousStatement(true, null);
+                this.setNextStatement(true, null);
+                this.setColour(blockColorSystem.getColor('div_block'));
+                this.setTooltip("Create a div element");
+
+                // Hide container dropdown by default
+                this.getInput('CONTAINER_INPUT').setVisible(false);
+
+                // Check for Bootstrap presence when the block is created or moved
+                this.setOnChange(function(event) {
+                    if (event.type === Blockly.Events.BLOCK_MOVE || 
+                        event.type === Blockly.Events.BLOCK_CREATE) {
+                        this.updateContainerVisibility();
+                    }
+                });
+            },
+
+            updateContainerVisibility: function() {
+                // Check if there's a Bootstrap block in the workspace
+                const workspace = this.workspace;
+                const hasBootstrap = workspace.getAllBlocks().some(block => 
+                    block.type === 'bootstrap_css_block'
+                );
+                
+                // Show/hide container dropdown based on Bootstrap presence
+                this.getInput('CONTAINER_INPUT').setVisible(hasBootstrap);
+            }
+        };
+
+        Blockly.Blocks['table_block'] = {
+            init: function() {
+                this.appendDummyInput()
+                    .appendField("<table>")
+                    .appendField("id:")
+                    .appendField(new Blockly.FieldTextInput(""), "ID")
+                    .appendField("class:")
+                    .appendField(new Blockly.FieldTextInput(""), "CLASS");
+                this.appendStatementInput("content")
+                    .setCheck("TableRow")
+                    .appendField("Rows");
+                this.appendDummyInput()
+                    .appendField("</table>");
+                this.setPreviousStatement(true, "BodyContent");
+                this.setNextStatement(true, "BodyContent");
+                this.setColour(blockColorSystem.getColor('table_block'));
+                this.setTooltip("Table Container");
+            }
+        };
+
+        Blockly.Blocks['table_row'] = {
+            init: function() {
+                this.appendDummyInput()
+                    .appendField("<tr>");
+                this.appendStatementInput("content")
+                    .setCheck("TableCell")
+                    .appendField("Cells");
+                this.appendDummyInput()
+                    .appendField("</tr>");
+                this.setPreviousStatement(true, "TableRow");
+                this.setNextStatement(true, "TableRow");
+                this.setColour(blockColorSystem.getColor('table_row'));
+                this.setTooltip("Table Row");
+            }
+        };
+
+        Blockly.Blocks['table_cell'] = {
+            init: function() {
+                this.appendDummyInput()
+                    .appendField("<td>");
+                this.appendStatementInput("content")
+                    .setCheck(["BodyContent", "InlineContent"])
+                    .appendField("Content");
+                this.appendDummyInput()
+                    .appendField("</td>");
+                this.setPreviousStatement(true, "TableCell");
+                this.setNextStatement(true, "TableCell");
+                this.setColour(blockColorSystem.getColor('table_cell'));
+                this.setTooltip("Table Cell");
+            }
+        };
+
+        Blockly.Blocks['heading'] = {
+            init: function() {
+                this.appendDummyInput()
+                    .appendField(new Blockly.FieldDropdown([
+                        ["<h1>", "h1"], ["<h2>", "h2"], ["<h3>", "h3"],
+                        ["<h4>", "h4"], ["<h5>", "h5"], ["<h6>", "h6"]
+                    ]), "TAG")
+                    .appendField(new Blockly.FieldTextInput("Heading"), "TEXT")
+                    .appendField("id:")
+                    .appendField(new Blockly.FieldTextInput(""), "ID")
+                    .appendField("class:")
+                    .appendField(new Blockly.FieldTextInput(""), "CLASS");
+                this.setPreviousStatement(true, "BodyContent");
+                this.setNextStatement(true, "BodyContent");
+                this.setColour(blockColorSystem.getColor('heading'));
+                this.setTooltip("Heading (h1-h6)");
+            }
+        };
+
+        Blockly.Blocks['anchor_block'] = {
+            init: function() {
+                this.appendDummyInput()
+                    .appendField("<a>")
+                    .appendField("href:")
+                    .appendField(new Blockly.FieldTextInput("https://example.com"), "HREF")
+                    .appendField("Text:")
+                    .appendField(new Blockly.FieldTextInput("Click here"), "TEXT")
+                    .appendField("</a>")
+                    .appendField("id:")
+                    .appendField(new Blockly.FieldTextInput(""), "ID")
+                    .appendField("class:")
+                    .appendField(new Blockly.FieldTextInput(""), "CLASS");
+                this.setPreviousStatement(true, ["BodyContent", "InlineContent"]);
+                this.setNextStatement(true, ["BodyContent", "InlineContent"]);
+                this.setColour(blockColorSystem.getColor('anchor_block'));
+                this.setTooltip("Anchor Link");
+            }
+        };
+
+        Blockly.Blocks['paragraph'] = {
+            init: function() {
+                this.appendDummyInput().appendField("<p>");
+                this.appendStatementInput("CONTENT").setCheck(["InlineContent"]).appendField("Content");
+                this.appendDummyInput()
+                    .appendField("</p>")
+                    .appendField("id:")
+                    .appendField(new Blockly.FieldTextInput(""), "ID")
+                    .appendField("class:")
+                    .appendField(new Blockly.FieldTextInput(""), "CLASS");
+                this.setPreviousStatement(true, "BodyContent");
+                this.setNextStatement(true, "BodyContent");
+                this.setColour(blockColorSystem.getColor('paragraph'));
+                this.setTooltip("Paragraph container for nested content");
+                
+                // Add a change listener to automatically add a text block when the paragraph is created
+                // Only do this if the block is in the main workspace, not in the toolbox
+                if (this.workspace.isFlyout === false) {
+                    this.workspace.addChangeListener(function(event) {
+                        // Only execute for BLOCK_CREATE events for this block
+                        if (event.type === Blockly.Events.BLOCK_CREATE && 
+                            event.ids.includes(this.id)) {
+                            
+                            // Check if the CONTENT input is empty
+                            const contentConnection = this.getInput('CONTENT').connection;
+                            if (!contentConnection.isConnected()) {
+                                // Create a new text block with a short delay
+                                setTimeout(() => {
+                                    // Double check block still exists (might have been deleted)
+                                    if (this.workspace && !this.isDisposed()) {
+                                        const textBlock = this.workspace.newBlock('text_block');
+                                        textBlock.initSvg();
+                                        textBlock.render();
+                                        
+                                        // Connect the text block to the paragraph's CONTENT input
+                                        contentConnection.connect(textBlock.previousConnection);
+                                        
+                                        // Update the workspace
+                                        this.workspace.render();
+                                    }
+                                }, 100);
+                            }
+                        }
+                    }.bind(this));
+                }
+            }
+        };
+
+        Blockly.Blocks['text_block'] = {
+            init: function() {
+                this.appendDummyInput()
+                    .appendField("Text:")
+                    .appendField(new Blockly.FieldTextInput("Plain text"), "TEXT");
+                this.appendDummyInput()
+                    .appendField("Bold:")
+                    .appendField(new Blockly.FieldCheckbox("FALSE"), "BOLD")
+                    .appendField("Italic:")
+                    .appendField(new Blockly.FieldCheckbox("FALSE"), "ITALIC");
+                this.setPreviousStatement(true, ["BodyContent", "InlineContent"]);
+                this.setNextStatement(true, ["BodyContent", "InlineContent"]);
+                this.setColour(blockColorSystem.getColor('text_block'));
+                this.setTooltip("Plain text content with bold and italic options");
+            }
+        };
+
+        Blockly.Blocks['list_block'] = {
+            init: function() {
+                this.appendDummyInput()
+                    .appendField(new Blockly.FieldDropdown([
+                        ["Ordered List <ol>", "ol"],
+                        ["Unordered List <ul>", "ul"]
+                    ]), "LIST_TYPE")
+                    .appendField("id:")
+                    .appendField(new Blockly.FieldTextInput(""), "ID")
+                    .appendField("class:")
+                    .appendField(new Blockly.FieldTextInput(""), "CLASS");
+                this.appendStatementInput("ITEMS")
+                    .setCheck("ListItem")
+                    .appendField("List Items");
+                this.appendDummyInput()
+                    .appendField(new Blockly.FieldLabel(""), "LIST_END"); // Dynamically set to </ol> or </ul>
+                this.setPreviousStatement(true, "BodyContent");
+                this.setNextStatement(true, "BodyContent");
+                this.setColour(blockColorSystem.getColor('list_block'));
+                this.setTooltip("Ordered or Unordered List with dynamic items");
+
+                // Add buttons for adding and removing list items
+                this.appendDummyInput()
+                    .appendField(new Blockly.FieldLabel("Add Item: "), "ADD_LABEL")
+                    .appendField(new Blockly.FieldImage("https://img.icons8.com/ios-filled/24/000000/plus-math.png", 24, 24, "Add List Item", this.addItem.bind(this)))
+                    .appendField(new Blockly.FieldLabel(" "), "SPACE")
+                    .appendField(new Blockly.FieldImage("https://img.icons8.com/ios-filled/24/000000/minus-math.png", 24, 24, "Remove List Item", this.removeItem.bind(this)));
+
+                // Initialize item count
+                this.itemCount = 0;
+
+                // Update end tag when list type changes
+                this.setOnChange(function(changeEvent) {
+                    const listType = this.getFieldValue('LIST_TYPE');
+                    this.getField('LIST_END').setValue(`</${listType}>`);
+                });
+            },
+
+            addItem: function() {
+                const newItemBlock = this.workspace.newBlock('list_item_block');
+                newItemBlock.initSvg();
+                newItemBlock.render();
+                const itemsConnection = this.getInput('ITEMS').connection;
+                const lastItemBlock = itemsConnection.targetBlock();
+                if (lastItemBlock) {
+                    const lastConnection = lastItemBlock.nextConnection;
+                    lastConnection.connect(newItemBlock.previousConnection);
+                } else {
+                    itemsConnection.connect(newItemBlock.previousConnection);
+                }
+                this.itemCount++;
+            },
+
+            removeItem: function() {
+                // Remove the last css_rule_block from the RULES input
+                const itemsConnection = this.getInput('ITEMS').connection;
+                let lastItemBlock = itemsConnection.targetBlock();
+                if (!lastItemBlock) return; // No items to remove
+
+                // Find the last item block
+                while (lastItemBlock.nextConnection && lastItemBlock.nextConnection.targetBlock()) {
+                    lastItemBlock = lastItemBlock.nextConnection.targetBlock();
+                }
+
+                // Disconnect and dispose of the last item block
+                lastItemBlock.previousConnection.disconnect();
+                lastItemBlock.dispose();
+                this.itemCount = Math.max(0, this.itemCount - 1);
+            }
+        };
+
+        Blockly.Blocks['list_item_block'] = {
+            init: function() {
+                this.appendDummyInput()
+                    .appendField("<li>")
+                    .appendField(new Blockly.FieldTextInput("Item"), "TEXT")
+                    .appendField("</li>");
+                this.setPreviousStatement(true, "ListItem");
+                this.setNextStatement(true, "ListItem");
+                this.setColour(blockColorSystem.getColor('list_block')); // Same color as parent
+                this.setTooltip("List Item");
+            }
+        };
+
+        Blockly.Blocks['style_block'] = {
+            init: function() {
+                this.appendDummyInput()
+                    .appendField("<style>")
+                    .appendField(new Blockly.FieldLabel(""), "STYLE_LABEL");
+                this.appendStatementInput("RULES")
+                    .setCheck(["CSSRule"])
+                    .appendField("CSS Rules");
+                this.appendDummyInput()
+                    .appendField("</style>");
+                this.setPreviousStatement(true, ["HeadContent", "CSSContent"]);
+                this.setNextStatement(true, ["HeadContent", "CSSContent"]);
+                this.setColour(blockColorSystem.getColor('style_block'));
+                this.setTooltip("Inline CSS with multiple rules");
+
+                // Add buttons for adding and removing rules
+                this.appendDummyInput()
+                    .appendField(new Blockly.FieldLabel("Add Rule: "), "ADD_LABEL")
+                    .appendField(new Blockly.FieldImage("https://img.icons8.com/ios-filled/24/000000/plus-math.png", 24, 24, "Add CSS Rule", this.addRule.bind(this)))
+                    .appendField(new Blockly.FieldLabel(" "), "SPACE")
+                    .appendField(new Blockly.FieldImage("https://img.icons8.com/ios-filled/24/000000/minus-math.png", 24, 24, "Remove CSS Rule", this.removeRule.bind(this)));
+
+                // Initialize rule count
+                this.ruleCount = 0;
+
+                // Update end tag when list type changes
+                this.setOnChange(function(changeEvent) {
+                    const rules = this.getFieldValue('RULES');
+                    this.getField('STYLE_LABEL').setValue(rules);
+                });
+            },
+
+            addRule: function() {
+                // Add a new css_rule_block to the RULES input
+                const newRuleBlock = this.workspace.newBlock('css_rule_block');
+                newRuleBlock.initSvg();
+                newRuleBlock.render();
+                const rulesConnection = this.getInput('RULES').connection;
+                const lastRuleBlock = rulesConnection.targetBlock();
+                if (lastRuleBlock) {
+                    // Connect to the last rule's next connection
+                    const lastConnection = lastRuleBlock.nextConnection;
+                    lastConnection.connect(newRuleBlock.previousConnection);
+                } else {
+                    // Connect directly to the RULES input
+                    rulesConnection.connect(newRuleBlock.previousConnection);
+                }
+                this.ruleCount++;
+            },
+
+            removeRule: function() {
+                // Remove the last css_rule_block from the RULES input
+                const rulesConnection = this.getInput('RULES').connection;
+                let lastRuleBlock = rulesConnection.targetBlock();
+                if (!lastRuleBlock) return; // No rules to remove
+
+                // Find the last rule block
+                while (lastRuleBlock.nextConnection && lastRuleBlock.nextConnection.targetBlock()) {
+                    lastRuleBlock = lastRuleBlock.nextConnection.targetBlock();
+                }
+
+                // Disconnect and dispose of the last rule block
+                lastRuleBlock.previousConnection.disconnect();
+                lastRuleBlock.dispose();
+                this.ruleCount = Math.max(0, this.ruleCount - 1);
+            }
+        };
+
+        Blockly.Blocks['css_block'] = {
+            init: function() {
+                this.appendDummyInput()
+                    .appendField("<css>")
+                    .appendField(new Blockly.FieldLabel(""), "CSS_LABEL");
+                this.appendStatementInput("rules")
+                    .setCheck(["css_rule_block", "CSSRule"])
+                    .appendField("CSS Rules");
+                this.appendDummyInput()
+                    .appendField("</css>");
+                this.setColour(blockColorSystem.getColor('css_block'));
+                this.setTooltip("CSS Block to define styles");
+                
+                // Add buttons for adding and removing rules
+                this.appendDummyInput()
+                    .appendField(new Blockly.FieldLabel("Add Rule: "), "ADD_LABEL")
+                    .appendField(new Blockly.FieldImage("https://img.icons8.com/ios-filled/24/000000/plus-math.png", 24, 24, "Add CSS Rule", this.addRule.bind(this)))
+                    .appendField(new Blockly.FieldLabel(" "), "SPACE")
+                    .appendField(new Blockly.FieldImage("https://img.icons8.com/ios-filled/24/000000/minus-math.png", 24, 24, "Remove CSS Rule", this.removeRule.bind(this)));
+
+                // Initialize rule count
+                this.ruleCount = 0;
+            },
+
+            addRule: function() {
+                try {
+                    // Create a new css_rule_block
+                    const newRuleBlock = this.workspace.newBlock('css_rule_block');
+                    newRuleBlock.initSvg();
+                    newRuleBlock.render();
+                    
+                    // Get the rules input connection
+                    const rulesConnection = this.getInput('rules').connection;
+                    const firstRuleBlock = rulesConnection.targetBlock();
+                    
+                    if (firstRuleBlock) {
+                        // Find the last rule block in the chain
+                        let currentBlock = firstRuleBlock;
+                        while (currentBlock.nextConnection && currentBlock.nextConnection.targetBlock()) {
+                            currentBlock = currentBlock.nextConnection.targetBlock();
+                        }
+                        
+                        // Connect the new rule to the last rule
+                        currentBlock.nextConnection.connect(newRuleBlock.previousConnection);
+                    } else {
+                        // If there are no rules yet, connect directly to the rules input
+                        rulesConnection.connect(newRuleBlock.previousConnection);
+                    }
+                    
+                    // Move the block to a position relative to the parent block
+                    const parentXY = this.getRelativeToSurfaceXY();
+                    newRuleBlock.moveBy(parentXY.x + 20, parentXY.y + 20 + (this.ruleCount * 50));
+                    
+                    // Ensure the workspace is updated
+                    this.workspace.render();
+                    this.ruleCount++;
+                } catch (e) {
+                    console.error("Error adding CSS rule:", e);
+                }
+            },
+
+            removeRule: function() {
+                try {
+                    // Get the rules input connection
+                    const rulesConnection = this.getInput('rules').connection;
+                    const firstRuleBlock = rulesConnection.targetBlock();
+                    
+                    if (!firstRuleBlock) return; // No rules to remove
+                    
+                    // Find the last rule block in the chain
+                    let currentBlock = firstRuleBlock;
+                    let previousBlock = null;
+                    
+                    while (currentBlock.nextConnection && currentBlock.nextConnection.targetBlock()) {
+                        previousBlock = currentBlock;
+                        currentBlock = currentBlock.nextConnection.targetBlock();
+                    }
+                    
+                    // Remove the last rule
+                    if (previousBlock) {
+                        // Disconnect the last block from the previous one
+                        previousBlock.nextConnection.disconnect();
+                    } else {
+                        // There's only one rule, disconnect it from the rules input
+                        rulesConnection.disconnect();
+                    }
+                    
+                    // Delete the block
+                    currentBlock.dispose();
+                    
+                    // Ensure the workspace is updated
+                    this.workspace.render();
+                    this.ruleCount = Math.max(0, this.ruleCount - 1);
+                } catch (e) {
+                    console.error("Error removing CSS rule:", e);
+                }
+            }
+        };
+
+        Blockly.Blocks['css_rule_block'] = {
+            init: function() {
+                this.appendDummyInput()
+                    .appendField("Selector:")
+                    .appendField(new Blockly.FieldTextInput(".my-class"), "SELECTOR");
+                this.appendDummyInput()
+                    .appendField("{")
+                    .appendField("Properties:")
+                    .appendField(new Blockly.FieldTextInput("color: blue;"), "PROPERTIES")
+                    .appendField("}");
+                this.setPreviousStatement(true, ["CSSRule", "css_rule_block"]);
+                this.setNextStatement(true, ["CSSRule", "css_rule_block"]);
+                this.setColour(blockColorSystem.getColor('css_rule_block'));
+                this.setTooltip("Define a CSS rule with selector and properties");
+            }
+        };
+
+        Blockly.Blocks['image_block'] = {
+            init: function() {
+                this.appendDummyInput()
+                    .appendField("Image")
+                    .appendField("URL:")
+                    .appendField(new Blockly.FieldTextInput("https://example.com/image.jpg"), "URL");
+                this.appendDummyInput()
+                    .appendField("Width:")
+                    .appendField(new Blockly.FieldNumber(200, 0), "WIDTH")
+                    .appendField("px")
+                    .appendField("Height:")
+                    .appendField(new Blockly.FieldNumber(200, 0), "HEIGHT")
+                    .appendField("px");
+                this.appendDummyInput()
+                    .appendField("Align:")
+                    .appendField(new Blockly.FieldDropdown([
+                        ["None", "none"],
+                        ["Left", "left"],
+                        ["Center", "center"],
+                        ["Right", "right"]
+                    ]), "ALIGN");
+                this.appendDummyInput()
+                    .appendField("Alt Text:")
+                    .appendField(new Blockly.FieldTextInput("Image description"), "ALT");
+                this.setPreviousStatement(true, ["BodyContent", "InlineContent"]);
+                this.setNextStatement(true, ["BodyContent", "InlineContent"]);
+                this.setColour(blockColorSystem.getColor('image_block'));
+                this.setTooltip("Insert an image with specified dimensions and alignment");
+            }
+        };
+
+        Blockly.Blocks['bootstrap_css_block'] = {
+            init: function() {
+                this.appendDummyInput()
+                    .appendField("Add Bootstrap CSS")
+                    .appendField("Version:")
+                    .appendField(new Blockly.FieldDropdown([
+                        ["5.3.3", "5.3.3"],
+                        ["4.6.2", "4.6.2"],
+                        ["3.4.1", "3.4.1"]
+                    ]), "VERSION");
+                
+                this.setPreviousStatement(true, "HeadContent");
+                this.setNextStatement(true, "HeadContent");
+                this.setColour(blockColorSystem.getColor('bootstrap_css_block'));
+                this.setTooltip("Add Bootstrap CSS framework");
+            }
+        };
+
+        Blockly.Blocks['row_block'] = {
+            init: function() {
+                this.appendDummyInput()
+                    .appendField('<div class="row"')
+                    .appendField("class:")
+                    .appendField(new Blockly.FieldTextInput(""), "CLASS")
+                    .appendField(">")
+                    .appendField(new Blockly.FieldImage(
+                        "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgd2lkdGg9IjI0Ij48cGF0aCBkPSJNMTkgMTNoLTZ2NmgtMnYtNkg1di0yaDZWNWgydjZoNnYyeiIvPjwvc3ZnPg==",
+                        15, 15, { alt: "+", onclick: function(block) { block.sourceBlock_.addColumn(); } }))
+                    .appendField(new Blockly.FieldImage(
+                        "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgd2lkdGg9IjI0Ij48cGF0aCBkPSJNMTkgMTNINXYtMmgxNHYyeiIvPjwvc3ZnPg==",
+                        15, 15, { alt: "-", onclick: function(block) { block.sourceBlock_.removeColumn(); } }));
+                
+                this.appendStatementInput("content")
+                    .setCheck(["col_block"]);
+                
+                this.appendDummyInput()
+                    .appendField("</div>");
+                
+                this.setPreviousStatement(true, ["BodyContent"]);
+                this.setNextStatement(true, ["BodyContent"]);
+                this.setColour(blockColorSystem.getColor('row_block'));
+                this.setTooltip("Bootstrap row container for columns");
+                this.setHelpUrl("");
+                
+                // Initialize with one column
+                this.columnCount = 0;
+                this.addColumn();
+            },
+            
+            addColumn: function() {
+                this.columnCount++;
+                const workspace = this.workspace;
+                const colBlock = workspace.newBlock('col_block');
+                colBlock.initSvg();
+                colBlock.render();
+                
+                // Get the connection for the content
+                const connection = this.getInput('content').connection;
+                
+                // If there's already a block connected, find the last block in the chain
+                if (connection.isConnected()) {
+                    let lastBlock = connection.targetBlock();
+                    while (lastBlock.nextConnection && lastBlock.nextConnection.targetBlock()) {
+                        lastBlock = lastBlock.nextConnection.targetBlock();
+                    }
+                    // Connect the new column to the last block
+                    lastBlock.nextConnection.connect(colBlock.previousConnection);
+                } else {
+                    // Connect the new column directly to the content input
+                    connection.connect(colBlock.previousConnection);
+                }
+            },
+            
+            removeColumn: function() {
+                if (this.columnCount <= 1) return; // Keep at least one column
+                
+                const contentConnection = this.getInput('content').connection;
+                if (!contentConnection.isConnected()) return;
+                
+                // Find the last column in the chain
+                let currentBlock = contentConnection.targetBlock();
+                let previousBlock = null;
+                
+                while (currentBlock.nextConnection && currentBlock.nextConnection.targetBlock()) {
+                    previousBlock = currentBlock;
+                    currentBlock = currentBlock.nextConnection.targetBlock();
+                }
+                
+                // Remove the last column
+                if (previousBlock) {
+                    // Disconnect the last block from the previous one
+                    previousBlock.nextConnection.disconnect();
+                } else {
+                    // There's only one column, disconnect it from the content input
+                    contentConnection.disconnect();
+                }
+                
+                // Delete the block
+                currentBlock.dispose();
+                
+                // Ensure the workspace is updated
+                this.workspace.render();
+                this.columnCount--;
+            }
+        };
+
+        Blockly.Blocks['col_block'] = {
+            init: function() {
+                this.appendDummyInput()
+                    .appendField('<div class="col')
+                    .appendField(new Blockly.FieldDropdown([
+                        ["", ""],
+                        ["col-1", "-1"],
+                        ["col-2", "-2"],
+                        ["col-3", "-3"],
+                        ["col-4", "-4"],
+                        ["col-5", "-5"],
+                        ["col-6", "-6"],
+                        ["col-7", "-7"],
+                        ["col-8", "-8"],
+                        ["col-9", "-9"],
+                        ["col-10", "-10"],
+                        ["col-11", "-11"],
+                        ["col-12", "-12"]
+                    ]), "SIZE")
+                    .appendField('">')
+                    .appendField(new Blockly.FieldTextInput("Content"), "CONTENT")
+                    .appendField("</div>");
+                
+                this.setPreviousStatement(true, "col_block");
+                this.setNextStatement(true, "col_block");
+                this.setColour(blockColorSystem.getColor('col_block'));
+                this.setTooltip("Bootstrap column");
+                this.setHelpUrl("");
+            }
+        };
+
+        Blockly.Blocks['navbar_block'] = {
+            init: function() {
+                this.appendDummyInput()
+                    .appendField('<nav class="navbar navbar-expand-lg')
+                    .appendField(new Blockly.FieldDropdown([
+                        ["Light", " navbar-light bg-light"],
+                        ["Dark", " navbar-dark bg-dark"],
+                        ["Primary", " navbar-dark bg-primary"],
+                        ["Success", " navbar-dark bg-success"],
+                        ["Info", " navbar-dark bg-info"],
+                        ["Warning", " navbar-light bg-warning"],
+                        ["Danger", " navbar-dark bg-danger"]
+                    ]), "THEME")
+                    .appendField('"')
+                    .appendField("brand:")
+                    .appendField(new Blockly.FieldTextInput("Brand"), "BRAND");
+                
+                // Add buttons in a separate dummy input to match list block style
+                this.appendDummyInput()
+                    .appendField("Add/Remove Items: ")
+                    .appendField(new Blockly.FieldImage(
+                        "https://img.icons8.com/ios-filled/24/000000/plus-math.png", 
+                        24, 24, "Add Nav Item", this.addNavItem.bind(this)))
+                    .appendField(new Blockly.FieldLabel(" "), "SPACE")
+                    .appendField(new Blockly.FieldImage(
+                        "https://img.icons8.com/ios-filled/24/000000/minus-math.png", 
+                        24, 24, "Remove Nav Item", this.removeNavItem.bind(this)));
+                
+                this.appendStatementInput("content")
+                    .setCheck("nav_item_block")
+                    .appendField("Nav Items");
+                this.appendDummyInput()
+                    .appendField("</nav>");
+                this.setPreviousStatement(true, "BodyContent");
+                this.setNextStatement(true, "BodyContent");
+                this.setColour(blockColorSystem.getColor('navbar_block'));
+                this.setTooltip("Create a Bootstrap navbar");
+                this.setHelpUrl("");
+                
+                // Initialize with nav item count
+                this.navItemCount = 0;
+                
+                // Add one nav item by default
+                this.workspace.addChangeListener(function(event) {
+                    if (event.type === Blockly.Events.BLOCK_CREATE && 
+                        event.ids.includes(this.id) && 
+                        this.navItemCount === 0) {
+                        setTimeout(() => this.addNavItem(), 100);
+                    }
+                }.bind(this));
+            },
+            
+            addNavItem: function() {
+                // Create a new nav item block
+                const navItemBlock = this.workspace.newBlock('nav_item_block');
+                navItemBlock.initSvg();
+                navItemBlock.render();
+                
+                // Get the statement connection for the navbar's content
+                const connection = this.getInput('content').connection;
+                
+                // If there are existing nav items, connect to the last one
+                if (connection.isConnected()) {
+                    let lastBlock = connection.targetBlock();
+                    while (lastBlock.nextConnection && lastBlock.nextConnection.targetBlock()) {
+                        lastBlock = lastBlock.nextConnection.targetBlock();
+                    }
+                    lastBlock.nextConnection.connect(navItemBlock.previousConnection);
+                } else {
+                    // Otherwise, connect directly to the navbar
+                    connection.connect(navItemBlock.previousConnection);
+                }
+                
+                this.navItemCount++;
+                
+                // Update the workspace
+                this.workspace.render();
+            },
+            
+            removeNavItem: function() {
+                if (this.navItemCount <= 0) return; // No nav items to remove
+                
+                // Get the statement connection for the navbar's content
+                const connection = this.getInput('content').connection;
+                
+                // If there are existing nav items, remove the last one
+                if (connection.isConnected()) {
+                    let currentBlock = connection.targetBlock();
+                    let previousBlock = null;
+                    
+                    // Find the last nav item block
+                    while (currentBlock.nextConnection && currentBlock.nextConnection.targetBlock()) {
+                        previousBlock = currentBlock;
+                        currentBlock = currentBlock.nextConnection.targetBlock();
+                    }
+                    
+                    // If this is the only nav item, disconnect it from the navbar
+                    if (!previousBlock) {
+                        connection.disconnect();
+                    } else {
+                        // Otherwise, disconnect it from the previous nav item
+                        previousBlock.nextConnection.disconnect();
+                    }
+                    
+                    // Remove the block
+                    currentBlock.dispose();
+                    this.navItemCount--;
+                    
+                    // Update the workspace
+                    this.workspace.render();
+                }
+            }
+        };
+
+        Blockly.Blocks['nav_item_block'] = {
+            init: function() {
+                this.appendDummyInput()
+                    .appendField('<a class="nav-link" href="')
+                    .appendField(new Blockly.FieldTextInput("#"), "HREF")
+                    .appendField('"')
+                    .appendField("active:")
+                    .appendField(new Blockly.FieldCheckbox("FALSE"), "ACTIVE")
+                    .appendField(">")
+                    .appendField(new Blockly.FieldTextInput("Nav Item"), "TEXT")
+                    .appendField("</a>");
+                
+                this.setPreviousStatement(true, ["nav_item_block"]);
+                this.setNextStatement(true, ["nav_item_block"]);
+                this.setColour(blockColorSystem.getColor('nav_item_block'));
+                this.setTooltip("Bootstrap nav item");
+                this.setHelpUrl("");
+            }
+        };
+
+        Blockly.Blocks['header_block'] = {
+            init: function() {
+                this.appendDummyInput()
+                    .appendField("<header>")
+                    .appendField("id:")
+                    .appendField(new Blockly.FieldTextInput(""), "ID")
+                    .appendField("class:")
+                    .appendField(new Blockly.FieldTextInput(""), "CLASS");
+                this.appendStatementInput("content")
+                    .setCheck(["BodyContent", "InlineContent"])
+                    .appendField("Content");
+                this.appendDummyInput()
+                    .appendField("</header>");
+                this.setPreviousStatement(true, "BodyContent");
+                this.setNextStatement(true, "BodyContent");
+                this.setColour(blockColorSystem.getColor('header_block'));
+                this.setTooltip("Header container");
+            }
+        };
+
+        Blockly.Blocks['nav_block'] = {
+            init: function() {
+                this.appendDummyInput()
+                    .appendField("<nav>")
+                    .appendField("id:")
+                    .appendField(new Blockly.FieldTextInput(""), "ID")
+                    .appendField("class:")
+                    .appendField(new Blockly.FieldTextInput(""), "CLASS")
+                    .appendField("style:")
+                    .appendField(new Blockly.FieldDropdown([
+                        ["Default", ""],
+                        ["Bootstrap Light", " navbar navbar-expand-lg navbar-light bg-light"],
+                        ["Bootstrap Dark", " navbar navbar-expand-lg navbar-dark bg-dark"],
+                        ["Bootstrap Primary", " navbar navbar-expand-lg navbar-dark bg-primary"],
+                        ["Bootstrap Success", " navbar navbar-expand-lg navbar-dark bg-success"],
+                        ["Bootstrap Info", " navbar navbar-expand-lg navbar-dark bg-info"],
+                        ["Bootstrap Warning", " navbar navbar-expand-lg navbar-light bg-warning"],
+                        ["Bootstrap Danger", " navbar navbar-expand-lg navbar-dark bg-danger"]
+                    ]), "STYLE")
+                    .appendField("brand:")
+                    .appendField(new Blockly.FieldTextInput(""), "BRAND");
+                
+                // Add buttons in a separate dummy input to match list block style
+                this.appendDummyInput()
+                    .appendField("Add/Remove Items: ")
+                    .appendField(new Blockly.FieldImage(
+                        "https://img.icons8.com/ios-filled/24/000000/plus-math.png", 
+                        24, 24, "Add Nav Item", this.addNavItem.bind(this)))
+                    .appendField(new Blockly.FieldLabel(" "), "SPACE")
+                    .appendField(new Blockly.FieldImage(
+                        "https://img.icons8.com/ios-filled/24/000000/minus-math.png", 
+                        24, 24, "Remove Nav Item", this.removeNavItem.bind(this)));
+                
+                this.appendStatementInput("content")
+                    .setCheck(["BodyContent", "InlineContent", "nav_item_block"])
+                    .appendField("Content");
+                this.appendDummyInput()
+                    .appendField("</nav>");
+                this.setPreviousStatement(true, "BodyContent");
+                this.setNextStatement(true, "BodyContent");
+                this.setColour(blockColorSystem.getColor('nav_block'));
+                this.setTooltip("Navigation container");
+                
+                // Initialize with nav item count
+                this.navItemCount = 0;
+            },
+            
+            addNavItem: function() {
+                // Create a new nav item block
+                const navItemBlock = this.workspace.newBlock('nav_item_block');
+                navItemBlock.initSvg();
+                navItemBlock.render();
+                
+                // Get the statement connection for the navbar's content
+                const connection = this.getInput('content').connection;
+                
+                // If there are existing nav items, connect to the last one
+                if (connection.isConnected()) {
+                    let lastBlock = connection.targetBlock();
+                    while (lastBlock.nextConnection && lastBlock.nextConnection.targetBlock()) {
+                        lastBlock = lastBlock.nextConnection.targetBlock();
+                    }
+                    lastBlock.nextConnection.connect(navItemBlock.previousConnection);
+                } else {
+                    // Otherwise, connect directly to the navbar
+                    connection.connect(navItemBlock.previousConnection);
+                }
+                
+                this.navItemCount++;
+                
+                // Update the workspace
+                this.workspace.render();
+            },
+            
+            removeNavItem: function() {
+                if (this.navItemCount <= 0) return; // No nav items to remove
+                
+                // Get the statement connection for the navbar's content
+                const connection = this.getInput('content').connection;
+                
+                // If there are existing nav items, remove the last one
+                if (connection.isConnected()) {
+                    let currentBlock = connection.targetBlock();
+                    let previousBlock = null;
+                    
+                    // Find the last nav item block
+                    while (currentBlock.nextConnection && currentBlock.nextConnection.targetBlock()) {
+                        previousBlock = currentBlock;
+                        currentBlock = currentBlock.nextConnection.targetBlock();
+                    }
+                    
+                    // If this is the only nav item, disconnect it from the navbar
+                    if (!previousBlock) {
+                        connection.disconnect();
+                    } else {
+                        // Otherwise, disconnect it from the previous nav item
+                        previousBlock.nextConnection.disconnect();
+                    }
+                    
+                    // Remove the block
+                    currentBlock.dispose();
+                    this.navItemCount--;
+                    
+                    // Update the workspace
+                    this.workspace.render();
+                }
+            }
+        };
+
+        Blockly.Blocks['main_block'] = {
+            init: function() {
+                this.appendDummyInput()
+                    .appendField("<main>")
+                    .appendField("id:")
+                    .appendField(new Blockly.FieldTextInput(""), "ID")
+                    .appendField("class:")
+                    .appendField(new Blockly.FieldTextInput(""), "CLASS");
+                this.appendStatementInput("content")
+                    .setCheck(["BodyContent", "InlineContent"])
+                    .appendField("Content");
+                this.appendDummyInput()
+                    .appendField("</main>");
+                this.setPreviousStatement(true, "BodyContent");
+                this.setNextStatement(true, "BodyContent");
+                this.setColour(blockColorSystem.getColor('main_block'));
+                this.setTooltip("Main content container");
+            }
+        };
+
+        Blockly.Blocks['section_block'] = {
+            init: function() {
+                this.appendDummyInput()
+                    .appendField("<section>")
+                    .appendField("id:")
+                    .appendField(new Blockly.FieldTextInput(""), "ID")
+                    .appendField("class:")
+                    .appendField(new Blockly.FieldTextInput(""), "CLASS");
+                this.appendStatementInput("content")
+                    .setCheck(["BodyContent", "InlineContent"])
+                    .appendField("Content");
+                this.appendDummyInput()
+                    .appendField("</section>");
+                this.setPreviousStatement(true, "BodyContent");
+                this.setNextStatement(true, "BodyContent");
+                this.setColour(blockColorSystem.getColor('section_block'));
+                this.setTooltip("Section container");
+            }
+        };
+
+        Blockly.Blocks['article_block'] = {
+            init: function() {
+                this.appendDummyInput()
+                    .appendField("<article>")
+                    .appendField("id:")
+                    .appendField(new Blockly.FieldTextInput(""), "ID")
+                    .appendField("class:")
+                    .appendField(new Blockly.FieldTextInput(""), "CLASS");
+                this.appendStatementInput("content")
+                    .setCheck(["BodyContent", "InlineContent"])
+                    .appendField("Content");
+                this.appendDummyInput()
+                    .appendField("</article>");
+                this.setPreviousStatement(true, "BodyContent");
+                this.setNextStatement(true, "BodyContent");
+                this.setColour(blockColorSystem.getColor('article_block'));
+                this.setTooltip("Article container");
+            }
+        };
+
+        Blockly.Blocks['aside_block'] = {
+            init: function() {
+                this.appendDummyInput()
+                    .appendField("<aside>")
+                    .appendField("id:")
+                    .appendField(new Blockly.FieldTextInput(""), "ID")
+                    .appendField("class:")
+                    .appendField(new Blockly.FieldTextInput(""), "CLASS");
+                this.appendStatementInput("content")
+                    .setCheck(["BodyContent", "InlineContent"])
+                    .appendField("Content");
+                this.appendDummyInput()
+                    .appendField("</aside>");
+                this.setPreviousStatement(true, "BodyContent");
+                this.setNextStatement(true, "BodyContent");
+                this.setColour(blockColorSystem.getColor('aside_block'));
+                this.setTooltip("Aside container");
+            }
+        };
+
+        Blockly.Blocks['footer_block'] = {
+            init: function() {
+                this.appendDummyInput()
+                    .appendField("<footer>")
+                    .appendField("id:")
+                    .appendField(new Blockly.FieldTextInput(""), "ID")
+                    .appendField("class:")
+                    .appendField(new Blockly.FieldTextInput(""), "CLASS");
+                this.appendStatementInput("content")
+                    .setCheck(["BodyContent", "InlineContent"])
+                    .appendField("Content");
+                this.appendDummyInput()
+                    .appendField("</footer>");
+                this.setPreviousStatement(true, "BodyContent");
+                this.setNextStatement(true, "BodyContent");
+                this.setColour(blockColorSystem.getColor('footer_block'));
+                this.setTooltip("Footer container");
+            }
+        };
+
+        // Generator Definitions
+        htmlGenerator['html_block'] = function(block) {
+            const headContent = htmlGenerator.statementToCode(block, 'head') || '';
+            const bodyContent = htmlGenerator.statementToCode(block, 'body') || '';
+            return `<!DOCTYPE html>\n<html>\n${headContent}${bodyContent}</html>`;
+        };
+
+        htmlGenerator['table_block'] = function(block) {
+            const id = block.getFieldValue('ID') ? ` id="${block.getFieldValue('ID')}"` : '';
+            const className = block.getFieldValue('CLASS') ? ` class="${block.getFieldValue('CLASS')}"` : '';
+            const content = htmlGenerator.statementToCode(block, 'content') || '';
+            return `<table${id}${className}>\n${content}</table>\n`;
+        };
+
+        htmlGenerator['table_row'] = function(block) {
+            const content = htmlGenerator.statementToCode(block, 'content') || '';
+            return `  <tr>\n${content}  </tr>\n`;
+        };
+
+        htmlGenerator['table_cell'] = function(block) {
+            const content = htmlGenerator.statementToCode(block, 'content') || '';
+            return `    <td>\n${content}    </td>\n`;
+        };
+
+        htmlGenerator['list_block'] = function(block) {
+            const listType = block.getFieldValue('LIST_TYPE');
+            const id = block.getFieldValue('ID') ? ` id="${block.getFieldValue('ID')}"` : '';
+            const className = block.getFieldValue('CLASS') ? ` class="${block.getFieldValue('CLASS')}"` : '';
+            const itemsContent = htmlGenerator.statementToCode(block, 'ITEMS') || '';
+            return `<${listType}${id}${className}>\n${itemsContent}</${listType}>\n`;
+        };
+
+        htmlGenerator['list_item_block'] = function(block) {
+            const text = block.getFieldValue('TEXT') || 'Item';
+            return `<li>${text}</li>\n`;
+        };
+
+        htmlGenerator['head_block'] = function(block) {
+            const content = htmlGenerator.statementToCode(block, 'content') || '';
+            return `<head>\n${content}</head>\n`;
+        };
+
+        htmlGenerator['body_block'] = function(block) {
+            const content = htmlGenerator.statementToCode(block, 'content') || '';
+            return `<body>\n${content}</body>\n`;
+        };
+
+        htmlGenerator['title_block'] = function(block) {
+            const text = block.getFieldValue('TEXT') || 'My Page';
+            return `<title>${text}</title>\n`;
+        };
+
+        htmlGenerator['div_block'] = function(block) {
+            const id = block.getFieldValue('ID');
+            const className = block.getFieldValue('CLASS');
+            const container = block.getFieldValue('CONTAINER');
+            const content = htmlGenerator.statementToCode(block, 'content') || '';
+            
+            let classes = [];
+            if (className) classes.push(className);
+            if (container) classes.push(container);
+            
+            const classAttr = classes.length > 0 ? ` class="${classes.join(' ')}"` : '';
+            const idAttr = id ? ` id="${id}"` : '';
+            
+            return `<div${idAttr}${classAttr}>\n${content}</div>\n`;
+        };
+
+        htmlGenerator['heading'] = function(block) {
+            const tag = block.getFieldValue('TAG').replace('<', '').replace('>', '');
+            const text = block.getFieldValue('TEXT') || 'Heading';
+            const id = block.getFieldValue('ID') ? ` id="${block.getFieldValue('ID')}"` : '';
+            const className = block.getFieldValue('CLASS') ? ` class="${block.getFieldValue('CLASS')}"` : '';
+            return `<${tag}${id}${className}>${text}</${tag}>\n`;
+        };
+
+        htmlGenerator['anchor_block'] = function(block) {
+            const href = block.getFieldValue('HREF') || 'https://example.com';
+            const text = block.getFieldValue('TEXT') || 'Click here';
+            const id = block.getFieldValue('ID') ? ` id="${block.getFieldValue('ID')}"` : '';
+            const className = block.getFieldValue('CLASS') ? ` class="${block.getFieldValue('CLASS')}"` : '';
+            return `<a href="${href}"${id}${className}>${text}</a>\n`;
+        };
+
+        htmlGenerator['paragraph'] = function(block) {
+            const content = htmlGenerator.statementToCode(block, 'CONTENT') || '';
+            const id = block.getFieldValue('ID') ? ` id="${block.getFieldValue('ID')}"` : '';
+            const className = block.getFieldValue('CLASS') ? ` class="${block.getFieldValue('CLASS')}"` : '';
+            return `<p${id}${className}>${content}</p>\n`;
+        };
+
+        htmlGenerator['text_block'] = function(block) {
+            const text = block.getFieldValue('TEXT') || '';
+            const isBold = block.getFieldValue('BOLD') === 'TRUE';
+            const isItalic = block.getFieldValue('ITALIC') === 'TRUE';
+            let formattedText = text;
+
+            if (isItalic) {
+                formattedText = `<i>${formattedText}</i>`;
+            }
+            if (isBold) {
+                formattedText = `<b>${formattedText}</b>`;
+            }
+
+            return formattedText;
+        };
+
+        htmlGenerator['style_block'] = function(block) {
+            const rulesContent = htmlGenerator.statementToCode(block, 'RULES') || '';
+            // Indent each line of rulesContent by 2 spaces (since it's inside <style>)
+            const indentedRules = rulesContent
+                .split('\n')
+                .filter(line => line.trim() !== '') // Remove empty lines
+                .map(line => `  ${line}`)
+                .join('\n');
+            return `<style>\n${indentedRules}\n</style>\n`;
+        };
+
+        htmlGenerator['css_block'] = function(block) {
+            const rulesContent = htmlGenerator.statementToCode(block, 'rules') || '';
+            return rulesContent;
+        };
+
+        htmlGenerator['css_rule_block'] = function(block) {
+            const selector = block.getFieldValue('SELECTOR') || '.my-class';
+            const properties = block.getFieldValue('PROPERTIES') || 'color: blue;';
+            return `${selector} { ${properties} }\n`;
+        };
+
+        htmlGenerator['image_block'] = function(block) {
+            const url = block.getFieldValue('URL');
+            const width = block.getFieldValue('WIDTH');
+            const height = block.getFieldValue('HEIGHT');
+            const align = block.getFieldValue('ALIGN');
+            const alt = block.getFieldValue('ALT');
+            
+            let style = '';
+            if (align !== 'none') {
+                if (align === 'center') {
+                    style = ` style="display: block; margin-left: auto; margin-right: auto;"`;
+                } else {
+                    style = ` style="float: ${align};"`;
+                }
+            }
+            
+            return `<img src="${url}" width="${width}" height="${height}" alt="${alt}"${style}>\n`;
+        };
+
+        htmlGenerator['bootstrap_css_block'] = function(block) {
+            const version = block.getFieldValue('VERSION');
+            let code = '';
+
+            // Simplified Bootstrap link with local path
+            code = `<link rel="stylesheet" href="bootstrap.min.css">\n`;
+
+            return code;
+        };
+
+        htmlGenerator['row_block'] = function(block) {
+            const className = block.getFieldValue('CLASS');
+            let classAttr = 'row';
+            if (className) {
+                classAttr += ' ' + className;
+            }
+            
+            const content = htmlGenerator.statementToCode(block, 'content') || '';
+            
+            return `<div class="${classAttr}">\n${content}</div>\n`;
+        };
+        
+        htmlGenerator['col_block'] = function(block) {
+            const size = block.getFieldValue('SIZE');
+            const content = block.getFieldValue('CONTENT');
+            
+            return `<div class="col${size}">\n${content}\n</div>\n`;
+        };
+
+        htmlGenerator['navbar_block'] = function(block) {
+            const theme = block.getFieldValue('THEME');
+            const brand = block.getFieldValue('BRAND');
+            const content = htmlGenerator.statementToCode(block, 'content') || '';
+            
+            return `<nav class="navbar navbar-expand-lg${theme}">\n  <div class="container-fluid">\n    <a class="navbar-brand" href="#">${brand}</a>\n    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">\n      <span class="navbar-toggler-icon"></span>\n    </button>\n    <div class="collapse navbar-collapse" id="navbarNav">\n      <ul class="navbar-nav">\n${content}      </ul>\n    </div>\n  </div>\n</nav>\n`;
+        };
+
+        htmlGenerator['nav_item_block'] = function(block) {
+            const href = block.getFieldValue('HREF');
+            const active = block.getFieldValue('ACTIVE') === 'TRUE';
+            const text = block.getFieldValue('TEXT');
+            
+            let classAttr = 'nav-link';
+            if (active) {
+                classAttr += ' active';
+            }
+            
+            return `        <li class="nav-item">
+          <a class="${classAttr}" href="${href}">${text}</a>
+        </li>`;
+        };
+
+        htmlGenerator['header_block'] = function(block) {
+            const id = block.getFieldValue('ID') ? ` id="${block.getFieldValue('ID')}"` : '';
+            const className = block.getFieldValue('CLASS') ? ` class="${block.getFieldValue('CLASS')}"` : '';
+            const content = htmlGenerator.statementToCode(block, 'content') || '';
+            return `<header${id}${className}>\n${content}</header>\n`;
+        };
+
+        htmlGenerator['nav_block'] = function(block) {
+            const id = block.getFieldValue('ID') ? ` id="${block.getFieldValue('ID')}"` : '';
+            let classes = block.getFieldValue('CLASS') || '';
+            const styleClasses = block.getFieldValue('STYLE') || '';
+            
+            // Combine user-specified classes with the style classes
+            if (styleClasses) {
+                classes = classes ? `${classes} ${styleClasses.trim()}` : styleClasses.trim();
+            }
+            
+            // Generate the class attribute if we have any classes
+            const classAttr = classes ? ` class="${classes}"` : '';
+            
+            const brand = block.getFieldValue('BRAND') || '';
+            const content = htmlGenerator.statementToCode(block, 'content') || '';
+            
+            return `<nav${id}${classAttr}>\n  <div class="container-fluid">\n    <a class="navbar-brand" href="#">${brand}</a>\n    <ul class="navbar-nav">\n${content}    </ul>\n  </div>\n</nav>\n`;
+        };
+
+        htmlGenerator['main_block'] = function(block) {
+            const id = block.getFieldValue('ID') ? ` id="${block.getFieldValue('ID')}"` : '';
+            const className = block.getFieldValue('CLASS') ? ` class="${block.getFieldValue('CLASS')}"` : '';
+            const content = htmlGenerator.statementToCode(block, 'content') || '';
+            return `<main${id}${className}>\n${content}</main>\n`;
+        };
+
+        htmlGenerator['section_block'] = function(block) {
+            const id = block.getFieldValue('ID') ? ` id="${block.getFieldValue('ID')}"` : '';
+            const className = block.getFieldValue('CLASS') ? ` class="${block.getFieldValue('CLASS')}"` : '';
+            const content = htmlGenerator.statementToCode(block, 'content') || '';
+            return `<section${id}${className}>\n${content}</section>\n`;
+        };
+
+        htmlGenerator['article_block'] = function(block) {
+            const id = block.getFieldValue('ID') ? ` id="${block.getFieldValue('ID')}"` : '';
+            const className = block.getFieldValue('CLASS') ? ` class="${block.getFieldValue('CLASS')}"` : '';
+            const content = htmlGenerator.statementToCode(block, 'content') || '';
+            return `<article${id}${className}>\n${content}</article>\n`;
+        };
+
+        htmlGenerator['aside_block'] = function(block) {
+            const id = block.getFieldValue('ID') ? ` id="${block.getFieldValue('ID')}"` : '';
+            const className = block.getFieldValue('CLASS') ? ` class="${block.getFieldValue('CLASS')}"` : '';
+            const content = htmlGenerator.statementToCode(block, 'content') || '';
+            return `<aside${id}${className}>\n${content}</aside>\n`;
+        };
+
+        htmlGenerator['footer_block'] = function(block) {
+            const id = block.getFieldValue('ID') ? ` id="${block.getFieldValue('ID')}"` : '';
+            const className = block.getFieldValue('CLASS') ? ` class="${block.getFieldValue('CLASS')}"` : '';
+            const content = htmlGenerator.statementToCode(block, 'content') || '';
+            return `<footer${id}${className}>\n${content}</footer>\n`;
+        };
+
+        // Workspace Initialization
+        let workspace;
+        let generatedCss = '';
+        // Add styles for Scratch UI
+        const style = document.createElement('style');
+        style.textContent = `
+            /* Scratch-style category UI */
+            .blocklyToolboxDiv {
+                background-color: #2c2c2c !important;
+                padding: 10px 5px !important;
+            }
+            
+            .blocklyTreeRow {
+                height: auto !important;
+                padding: 10px 5px !important;
+                margin: 5px 0 !important;
+                display: flex !important;
+                flex-direction: column !important;
+                align-items: center !important;
+                justify-content: center !important;
+                background: none !important;
+                border: none !important;
+                cursor: pointer !important;
+            }
+            
+            .blocklyTreeIcon {
+                display: none !important;
+            }
+            
+            .blocklyTreeLabel {
+                color: #fff !important;
+                font-size: 11px !important;
+                margin-top: 5px !important;
+                text-align: center !important;
+                padding: 0 !important;
+                width: 100% !important;
+            }
+            
+            .scratch-category {
+                width: 40px;
+                height: 40px;
+                border-radius: 50%;
+                margin: 0 auto 5px;
+                transition: all 0.3s ease;
+                display: block !important;
+                z-index: 10;
+                position: relative;
+            }
+            
+            .blocklyTreeRow:hover .scratch-category {
+                transform: scale(1.1);
+                box-shadow: 0 0 5px rgba(0,0,0,0.3);
+            }
+            
+            .blocklyTreeSelected .scratch-category {
+                box-shadow: 0 0 0 3px #333, 0 0 0 5px rgba(255,255,255,0.3);
+            }
+        `;
+        document.head.appendChild(style);
+        
+        window.onload = function() {
+            const savedTheme = localStorage.getItem('darkMode');
+            
+            // Set dark mode as default if no preference is saved
+            const useDarkMode = savedTheme === null ? true : savedTheme === 'true';
+            
+            // If no preference is saved, set dark mode as default
+            if (savedTheme === null) {
+                localStorage.setItem('darkMode', 'true');
+            }
+            
+            // Initialize workspace with appropriate theme
+            workspace = Blockly.inject('blocklyDiv', {
+                toolbox: document.getElementById('toolbox'),
+                theme: useDarkMode ? darkTheme : lightTheme
+            });
+            
+            // Apply theme to UI elements
+            if (useDarkMode) {
+                document.body.classList.add('dark-mode');
+                const elements = document.querySelectorAll('.sidebar, .main, #preview, textarea, #codeOutput, .btn, .toggle-btn, .resizer');
+                elements.forEach(element => element.classList.add('dark-mode'));
+            }
+            
+            // Inject the appropriate theme styles
+            injectThemeStyles(useDarkMode);
+            
+            // Add category circles after a short delay
+            setTimeout(function() {
+                addCategoryCircles();
+                
+                // Force another refresh after categories are added
+                setTimeout(function() {
+                    // Force refresh of any theme styles
+                    injectThemeStyles(useDarkMode);
+                }, 300);
+            }, 500);
+
+            // Restore main area visibility state
+            const mainAreaCollapsed = localStorage.getItem('mainAreaCollapsed') === 'true';
+            if (mainAreaCollapsed) {
+                const mainArea = document.querySelector('.main');
+                const toggleButton = document.querySelector('.main-toggle');
+                const sidebar = document.querySelector('.sidebar');
+                
+                mainArea.classList.add('collapsed');
+                toggleButton.classList.add('collapsed');
+                sidebar.classList.add('expanded');
+                toggleButton.title = "Show Output";
+                
+                // Ensure the Blockly workspace resizes when the page loads with the main area hidden
+                setTimeout(() => {
+                    Blockly.svgResize(workspace);
+                }, 300); // Small delay to allow CSS transitions to complete
+            }
+
+            // Initialize the sidebar resizer
+            initResizer();
+
+            // Add real-time update listener with debounce
+            let debounceTimeout;
+            let saveTimeout;
+            workspace.addChangeListener(function(event) {
+                // Update output
+                clearTimeout(debounceTimeout);
+                debounceTimeout = setTimeout(updateOutputs, 300); // 300ms debounce
+                
+                // Autosave workspace using a simplified approach
+                if (event.type === Blockly.Events.BLOCK_CHANGE || 
+                    event.type === Blockly.Events.BLOCK_CREATE || 
+                    event.type === Blockly.Events.BLOCK_DELETE || 
+                    event.type === Blockly.Events.BLOCK_MOVE) {
+                    clearTimeout(saveTimeout);
+                    saveTimeout = setTimeout(function() {
+                        try {
+                            // Save blocks directly as serialized JSON (more reliable than XML)
+                            const blocksJson = Blockly.serialization.workspaces.save(workspace);
+                            const serialized = JSON.stringify(blocksJson);
+                            localStorage.setItem('blocklyWorkspace', serialized);
+                            console.log('Workspace saved');
+                        } catch (e) {
+                            console.error('Error saving workspace:', e);
+                        }
+                    }, 1000);
+                }
+            });
+
+            // Initial update
+            updateOutputs();
+            
+            // Load saved workspace using the JSON serialization approach
+            setTimeout(function() {
+                try {
+                    const serialized = localStorage.getItem('blocklyWorkspace');
+                    if (serialized && workspace) {
+                        const blocksJson = JSON.parse(serialized);
+                        
+                        // Clear the workspace first
+                        workspace.clear();
+                        
+                        // Load the workspace from saved state
+                        Blockly.serialization.workspaces.load(blocksJson, workspace);
+                        console.log('Workspace loaded');
+                        
+                        // Show a notification
+                        const notification = document.createElement('div');
+                        notification.textContent = 'Previous work restored';
+                        notification.style.position = 'fixed';
+                        notification.style.bottom = '20px';
+                        notification.style.right = '20px';
+                        notification.style.padding = '10px 15px';
+                        notification.style.backgroundColor = '#4CAF50';
+                        notification.style.color = 'white';
+                        notification.style.borderRadius = '4px';
+                        notification.style.zIndex = '1000';
+                        notification.style.opacity = '0';
+                        notification.style.transition = 'opacity 0.3s ease';
+                        document.body.appendChild(notification);
+                        
+                        // Show and hide the notification
+                        setTimeout(() => {
+                            notification.style.opacity = '1';
+                            setTimeout(() => {
+                                notification.style.opacity = '0';
+                                setTimeout(() => {
+                                    if (document.body.contains(notification)) {
+                                        document.body.removeChild(notification);
+                                    }
+                                }, 300);
+                            }, 3000);
+                        }, 100);
+                        
+                        // Trigger an update to refresh the output
+                        updateOutputs();
+                    }
+                } catch (e) {
+                    console.error('Error loading workspace:', e);
+                    // If there's an error, clear the storage to avoid future issues
+                    localStorage.removeItem('blocklyWorkspace');
+                }
+            }, 1000); // Longer delay to ensure Blockly is fully initialized
+            
+            // Add Scratch-style category circles
+            function addCategoryCircles() {
+                // Use the global categoryColors object
+                const colors = Object.assign({
+                    // Default fallback colors if not specified in categoryColors
+                    'HTML Structure': '#4C97FF',  // Blue
+                    'HTML5 Semantic': '#9966FF',  // Purple
+                    'Table Elements': '#FF8C1A',   // Orange
+                    'Content Elements': '#CF63CF', // Magenta
+                    'Styling': '#59C059',         // Green
+                    'Bootstrap': '#FF6680'         // Pink
+                }, categoryColors); // This will override defaults with any custom colors
+                
+                // Fallback color if category not found
+                const fallbackColor = '#999999';
+                
+                // Process each category row
+                document.querySelectorAll('.blocklyTreeRow').forEach(row => {
+                    // Skip if already processed or if it's a subcategory
+                    if (row.querySelector('.scratch-category') || row.querySelector('.blocklyTreeSeparator')) {
+                        return;
+                    }
+                    
+                    // Get the label element
+                    const label = row.querySelector('.blocklyTreeLabel');
+                    if (!label) return;
+                    
+                    // Get category name and color
+                    const categoryName = label.textContent.trim();
+                    const color = colors[categoryName] || fallbackColor;
+                    
+                    // Create the circle element
+                    const circle = document.createElement('div');
+                    circle.className = 'scratch-category';
+                    circle.style.backgroundColor = color;
+                    
+                    // Get the row content container
+                    const contentContainer = row.querySelector('.blocklyTreeRowContentContainer') || row;
+                    
+                    // Insert the circle at the beginning of the row content
+                    if (contentContainer.firstChild) {
+                        contentContainer.insertBefore(circle, contentContainer.firstChild);
+                    } else {
+                        contentContainer.appendChild(circle);
+                    }
+                    
+                    console.log(`Added ${color} circle for ${categoryName}`);
+                });
+            }
+            
+            // Run initially after a short delay
+            setTimeout(addCategoryCircles, 500);
+            
+            // Also run after Blockly finishes rendering categories
+            workspace.addChangeListener(function(event) {
+                if (event.type === Blockly.Events.TOOLBOX_ITEM_SELECT) {
+                    setTimeout(addCategoryCircles, 100);
+                }
+            });
+            
+            // Set up observer to handle dynamic changes
+            const observer = new MutationObserver(function(mutations) {
+                mutations.forEach(function(mutation) {
+                    if (mutation.addedNodes.length) {
+                        addCategoryCircles();
+                    }
+                });
+            });
+            
+            const toolbox = document.querySelector('.blocklyToolboxDiv');
+            if (toolbox) {
+                observer.observe(toolbox, {
+                    childList: true,
+                    subtree: true
+                });
+            }
+        };
+
+        // Real-time update function
+        function updateOutputs() {
+            if (workspace) {
+                // Generate HTML for codeOutput
+                let htmlContent = '';
+                const topBlocks = workspace.getTopBlocks();
+                topBlocks.forEach(block => {
+                    if (block.type !== 'css_block') {
+                        htmlContent += htmlGenerator.blockToCode(block);
+                    }
+                });
+                
+                // Ensure Bootstrap CSS link is visible in the HTML output
+                // Check if the raw HTML contains the head tag
+                if (htmlContent.includes('<head>')) {
+                    // Find all bootstrap_css_block blocks
+                    workspace.getAllBlocks().forEach(block => {
+                        if (block.type === 'bootstrap_css_block') {
+                            const version = block.getFieldValue('VERSION');
+                            let cssLink = '';
+                            
+                            // Simplified Bootstrap link with local path
+                            cssLink = `<link rel="stylesheet" href="bootstrap.min.css">\n`;
+                            
+                            // Insert the CSS link after the head tag
+                            htmlContent = htmlContent.replace('<head>', `<head>\n  ${cssLink}`);
+                        }
+                    });
+                }
+           
+                // Colorize HTML tags based on block colors
+                const htmlColor = blockColorSystem.getColor('html_block');
+                const headColor = blockColorSystem.getColor('head_block');
+                const bodyColor = blockColorSystem.getColor('body_block');
+                const titleColor = blockColorSystem.getColor('title_block');
+                const divColor = blockColorSystem.getColor('div_block');
+                const tableColor = blockColorSystem.getColor('table_block');
+                const tableRowColor = blockColorSystem.getColor('table_row');
+                const tableCellColor = blockColorSystem.getColor('table_cell');
+                const headingColor = blockColorSystem.getColor('heading');
+                const anchorColor = blockColorSystem.getColor('anchor_block');
+                const paragraphColor = blockColorSystem.getColor('paragraph');
+                const listColor = blockColorSystem.getColor('list_block');
+                const styleColor = blockColorSystem.getColor('style_block');
+                const textColor = blockColorSystem.getColor('text_block');
+                const imageColor = blockColorSystem.getColor('image_block');
+                const bootstrapColor = blockColorSystem.getColor('bootstrap_css_block') || '#7e57c2';
+                const rowColor = blockColorSystem.getColor('row_block');
+                const colColor = blockColorSystem.getColor('col_block');
+                const navbarColor = blockColorSystem.getColor('navbar_block');
+                const navItemColor = blockColorSystem.getColor('nav_item_block');
+                const headerColor = blockColorSystem.getColor('header_block');
+                const navColor = blockColorSystem.getColor('nav_block');
+                const mainColor = blockColorSystem.getColor('main_block');
+                const sectionColor = blockColorSystem.getColor('section_block');
+                const articleColor = blockColorSystem.getColor('article_block');
+                const asideColor = blockColorSystem.getColor('aside_block');
+                const footerColor = blockColorSystem.getColor('footer_block');
+
+                let coloredHtml = htmlContent
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    
+                    // Basic HTML tags
+                    .replace(/&lt;!DOCTYPE html&gt;/g, `<span style="color: ${htmlColor}">&lt;!DOCTYPE html&gt;</span>`)
+                    .replace(/&lt;html(.*?)&gt;/g, `<span style="color: ${htmlColor}">&lt;html$1&gt;</span>`)
+                    .replace(/&lt;\/html&gt;/g, `<span style="color: ${htmlColor}">&lt;/html&gt;</span>`)
+                    .replace(/&lt;head&gt;/g, `<span style="color: ${headColor}">&lt;head&gt;</span>`)
+                    .replace(/&lt;\/head&gt;/g, `<span style="color: ${headColor}">&lt;/head&gt;</span>`)
+                    .replace(/&lt;title&gt;(.*?)&lt;\/title&gt;/g, `<span style="color: ${titleColor}">&lt;title&gt;</span>$1<span style="color: ${titleColor}">&lt;/title&gt;</span>`)
+                    .replace(/&lt;body(.*?)&gt;/g, `<span style="color: ${bodyColor}">&lt;body$1&gt;</span>`)
+                    .replace(/&lt;\/body&gt;/g, `<span style="color: ${bodyColor}">&lt;/body&gt;</span>`)
+                    .replace(/&lt;div(.*?)&gt;/g, `<span style="color: ${divColor}">&lt;div$1&gt;</span>`)
+                    .replace(/&lt;\/div&gt;/g, `<span style="color: ${divColor}">&lt;/div&gt;</span>`)
+                    
+                    // Table related tags
+                    .replace(/&lt;table(.*?)&gt;/g, `<span style="color: ${tableColor}">&lt;table$1&gt;</span>`)
+                    .replace(/&lt;\/table&gt;/g, `<span style="color: ${tableColor}">&lt;/table&gt;</span>`)
+                    .replace(/&lt;tr(.*?)&gt;/g, `<span style="color: ${tableRowColor}">&lt;tr$1&gt;</span>`)
+                    .replace(/&lt;\/tr&gt;/g, `<span style="color: ${tableRowColor}">&lt;/tr&gt;</span>`)
+                    .replace(/&lt;td(.*?)&gt;/g, `<span style="color: ${tableCellColor}">&lt;td$1&gt;</span>`)
+                    .replace(/&lt;\/td&gt;/g, `<span style="color: ${tableCellColor}">&lt;/td&gt;</span>`)
+                    .replace(/&lt;th(.*?)&gt;/g, `<span style="color: ${tableCellColor}">&lt;th$1&gt;</span>`)
+                    .replace(/&lt;\/th&gt;/g, `<span style="color: ${tableCellColor}">&lt;/th&gt;</span>`)
+                    
+                    // Headings
+                    .replace(/&lt;h([1-6])(.*?)&gt;/g, `<span style="color: ${headingColor}">&lt;h$1$2&gt;</span>`)
+                    .replace(/&lt;\/h([1-6])&gt;/g, `<span style="color: ${headingColor}">&lt;/h$1&gt;</span>`)
+                    
+                    // Anchor tags
+                    .replace(/&lt;a(.*?)&gt;/g, `<span style="color: ${anchorColor}">&lt;a$1&gt;</span>`)
+                    .replace(/&lt;\/a&gt;/g, `<span style="color: ${anchorColor}">&lt;/a&gt;</span>`)
+                    
+                    // Paragraph tags
+                    .replace(/&lt;p(.*?)&gt;/g, `<span style="color: ${paragraphColor}">&lt;p$1&gt;</span>`)
+                    .replace(/&lt;\/p&gt;/g, `<span style="color: ${paragraphColor}">&lt;/p&gt;</span>`)
+                    
+                    // List related tags - using the same color variable consistently
+                    .replace(/&lt;(ol|ul)(.*?)&gt;/g, (match, tag, attrs) => `<span style="color: ${listColor}">&lt;${tag}${attrs}&gt;</span>`)
+                    .replace(/&lt;\/(ol|ul)&gt;/g, (match, tag) => `<span style="color: ${listColor}">&lt;\/${tag}&gt;</span>`)
+                    .replace(/&lt;li(.*?)&gt;/g, (match, attrs) => `<span style="color: ${listColor}">&lt;li${attrs}&gt;</span>`)
+                    .replace(/&lt;\/li&gt;/g, () => `<span style="color: ${listColor}">&lt;/li&gt;</span>`)
+                    
+                    // Style tags
+                    .replace(/&lt;style(.*?)&gt;/g, `<span style="color: ${styleColor}">&lt;style$1&gt;</span>`)
+                    .replace(/&lt;\/style&gt;/g, `<span style="color: ${styleColor}">&lt;\/style&gt;</span>`)
+                    
+                    // Image tags
+                    .replace(/&lt;img(.*?)&gt;/g, `<span style="color: ${imageColor}">&lt;img$1&gt;</span>`)
+                    
+                    // Bootstrap specific highlighting
+                    .replace(/&lt;link\n(.*?)bootstrap(.*?)&gt;/gs, `<span style="color: ${bootstrapColor}">&lt;link\n$1bootstrap$2&gt;</span>`)
+                    .replace(/&lt;link (.*?)bootstrap(.*?)&gt;/g, `<span style="color: ${bootstrapColor}">&lt;link $1bootstrap$2&gt;</span>`)
+                    
+                    // Navbar specific highlighting
+                    .replace(/&lt;nav class="navbar(.*?)&gt;/g, `<span style="color: ${navbarColor}">&lt;nav class="navbar$1&gt;</span>`)
+                    .replace(/&lt;\/nav&gt;/g, `<span style="color: ${navbarColor}">&lt;/nav&gt;</span>`)
+                    .replace(/&lt;div class="container-fluid"&gt;/g, `<span style="color: ${navbarColor}">&lt;div class="container-fluid"&gt;</span>`)
+                    .replace(/&lt;a class="navbar-brand"(.*?)&gt;/g, `<span style="color: ${navbarColor}">&lt;a class="navbar-brand"$1&gt;</span>`)
+                    .replace(/&lt;button class="navbar-toggler"(.*?)&gt;/g, `<span style="color: ${navbarColor}">&lt;button class="navbar-toggler"$1&gt;</span>`)
+                    .replace(/&lt;\/button&gt;/g, `<span style="color: ${navbarColor}">&lt;/button&gt;</span>`)
+                    .replace(/&lt;span class="navbar-toggler-icon"&gt;&lt;\/span&gt;/g, `<span style="color: ${navbarColor}">&lt;span class="navbar-toggler-icon"&gt;&lt;/span&gt;</span>`)
+                    .replace(/&lt;div class="collapse navbar-collapse"(.*?)&gt;/g, `<span style="color: ${navbarColor}">&lt;div class="collapse navbar-collapse"$1&gt;</span>`)
+                    .replace(/&lt;ul class="navbar-nav"&gt;/g, `<span style="color: ${navbarColor}">&lt;ul class="navbar-nav"&gt;</span>`)
+                    .replace(/&lt;\/ul&gt;/g, `<span style="color: ${navbarColor}">&lt;/ul&gt;</span>`)
+                    .replace(/&lt;li class="nav-item"&gt;/g, `<span style="color: ${navItemColor}">&lt;li class="nav-item"&gt;</span>`)
+                    .replace(/&lt;\/li&gt;/g, `<span style="color: ${navItemColor}">&lt;/li&gt;</span>`)
+                    .replace(/&lt;a class="nav-link(.*?)&gt;/g, `<span style="color: ${navItemColor}">&lt;a class="nav-link$1&gt;</span>`)
+                    .replace(/&lt;\/a&gt;/g, `<span style="color: ${navItemColor}">&lt;/a&gt;</span>`)
+                    
+                    // HTML5 Semantic highlighting
+                    .replace(/&lt;header(.*?)&gt;/g, `<span style="color: ${headerColor}">&lt;header$1&gt;</span>`)
+                    .replace(/&lt;\/header&gt;/g, `<span style="color: ${headerColor}">&lt;/header&gt;</span>`)
+                    .replace(/&lt;nav(.*?)&gt;/g, `<span style="color: ${navColor}">&lt;nav$1&gt;</span>`)
+                    .replace(/&lt;\/nav&gt;/g, `<span style="color: ${navColor}">&lt;/nav&gt;</span>`)
+                    .replace(/&lt;main(.*?)&gt;/g, `<span style="color: ${mainColor}">&lt;main$1&gt;</span>`)
+                    .replace(/&lt;\/main&gt;/g, `<span style="color: ${mainColor}">&lt;/main&gt;</span>`)
+                    .replace(/&lt;section(.*?)&gt;/g, `<span style="color: ${sectionColor}">&lt;section$1&gt;</span>`)
+                    .replace(/&lt;\/section&gt;/g, `<span style="color: ${sectionColor}">&lt;/section&gt;</span>`)
+                    .replace(/&lt;article(.*?)&gt;/g, `<span style="color: ${articleColor}">&lt;article$1&gt;</span>`)
+                    .replace(/&lt;\/article&gt;/g, `<span style="color: ${articleColor}">&lt;/article&gt;</span>`)
+                    .replace(/&lt;aside(.*?)&gt;/g, `<span style="color: ${asideColor}">&lt;aside$1&gt;</span>`)
+                    .replace(/&lt;\/aside&gt;/g, `<span style="color: ${asideColor}">&lt;/aside&gt;</span>`)
+                    .replace(/&lt;footer(.*?)&gt;/g, `<span style="color: ${footerColor}">&lt;footer$1&gt;</span>`)
+                    .replace(/&lt;\/footer&gt;/g, `<span style="color: ${footerColor}">&lt;/footer&gt;</span>`);
+                
+                console.log("Colored HTML:", coloredHtml);
+                document.getElementById('codeOutput').innerHTML = coloredHtml;
+                
+                // Add Bootstrap container code display if present
+                let bootstrapContainerCode = '';
+                
+                // Find all div blocks with container classes
+                workspace.getAllBlocks().forEach(block => {
+                    if (block.type === 'div_block') {
+                        const container = block.getFieldValue('CONTAINER');
+                        if (container) {
+                            // Get the ID and CLASS values
+                            const id = block.getFieldValue('ID') || '';
+                            const className = block.getFieldValue('CLASS') || '';
+                            
+                            // Build the opening div tag with container class
+                            let divTag = '<div';
+                            if (id) divTag += ` id="${id}"`;
+                            
+                            // Combine container class with other classes
+                            let classes = [];
+                            if (className) classes.push(className);
+                            classes.push(container);
+                            
+                            if (classes.length > 0) {
+                                divTag += ` class="${classes.join(' ')}"`;
+                            }
+                            divTag += '>';
+                            
+                            // Add to bootstrap container code display
+                            bootstrapContainerCode += `<pre style="background-color: #f8f9fa; padding: 10px; border-radius: 4px; margin-top: 10px;"><code>${divTag.replace(/</g, '&lt;').replace(/>/g, '&gt;')}\n  <!-- content goes here -->\n&lt;/div&gt;</code></pre>`;
+                        }
+                    }
+                });
+              
+                // Display Bootstrap container code if present
+                if (bootstrapContainerCode) {
+                    document.getElementById('codeOutput').innerHTML += 
+                        '<div style="margin-top: 20px; border-top: 1px solid #ddd; padding-top: 10px;">' +
+                        '<h4>Bootstrap Container Code:</h4>' +
+                        bootstrapContainerCode +
+                        '</div>';
+                }
+           
+                // Generate CSS for cssOutput
+                generatedCss = '';
+                const cssBlocks = workspace.getAllBlocks().filter(block => block.type === 'css_block');
+                cssBlocks.forEach(block => {
+                    generatedCss += htmlGenerator.blockToCode(block);
+                });
+                document.getElementById('cssOutput').value = generatedCss.trim() || '// No CSS generated';
+
+                // Extract head and body content for preview
+                let headContent = '';
+                let bodyContent = '';
+                const htmlBlocks = topBlocks.filter(block => block.type === 'html_block');
+                if (htmlBlocks.length > 0) {
+                    const htmlBlock = htmlBlocks[0];
+                    headContent = htmlGenerator.statementToCode(htmlBlock, 'head') || '';
+                    bodyContent = htmlGenerator.statementToCode(htmlBlock, 'body') || '';
+                    headContent = headContent.replace(/<head>\n?|\n?<\/head>/g, '').trim();
+                    bodyContent = bodyContent.replace(/<body>\n?|\n?<\/body>/g, '').trim();
+                }
+
+                // Render preview in iframe
+                const previewIframe = document.getElementById('preview');
+                const previewDoc = previewIframe.contentWindow.document;
+                previewDoc.open();
+                previewDoc.write(`
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <style>${generatedCss}</style>
+                        ${headContent}
+                    </head>
+                    <body>
+                        ${bodyContent}
+                    </body>
+                    </html>
+                `);
+                previewDoc.close();
+
+                // Sync colors from output back to blocks
+                Object.keys(blockColorSystem.colors).forEach(blockType => {
+                    const newColor = extractColorFromOutput(blockType);
+                    if (newColor && newColor !== blockColorSystem.getColor(blockType)) {
+                        blockColorSystem.setColor(blockType, newColor);
+                    }
+                });
+            } else {
+                console.error("Workspace not initialized");
+            }
+        }
+
+        function copyHtmlCode() {
+            const htmlCode = document.getElementById('codeOutput').textContent;
+            navigator.clipboard.writeText(htmlCode);
+            
+            // Show feedback
+            const button = document.querySelector('.copy-html-btn');
+            const originalText = button.textContent;
+            button.textContent = 'Copied!';
+            setTimeout(() => {
+                button.textContent = 'Copy HTML';
+            }, 2000);
+        }
+        
+        function copyCssCode() {
+            const cssCode = document.getElementById('cssOutput').value;
+            navigator.clipboard.writeText(cssCode);
+            
+            // Show feedback
+            const button = document.querySelector('.copy-css-btn');
+            const originalText = button.textContent;
+            button.textContent = 'Copied!';
+            setTimeout(() => {
+                button.textContent = 'Copy CSS';
+            }, 2000);
+        }
+
+        function newProject() {
+            // Ask for confirmation before clearing
+            if (confirm('Are you sure you want to start a new project? All current blocks will be removed.')) {
+                // Clear localStorage
+                localStorage.removeItem('blocklyWorkspace');
+                
+                // Clear the workspace
+                workspace.clear();
+                
+                // Update the outputs
+                updateOutputs();
+                
+                // Show notification
+                const notification = document.createElement('div');
+                notification.textContent = 'Started new project';
+                notification.style.position = 'fixed';
+                notification.style.bottom = '20px';
+                notification.style.right = '20px';
+                notification.style.padding = '10px 15px';
+                notification.style.backgroundColor = '#3498db';
+                notification.style.color = 'white';
+                notification.style.borderRadius = '4px';
+                notification.style.zIndex = '1000';
+                notification.style.opacity = '0';
+                notification.style.transition = 'opacity 0.3s ease';
+                document.body.appendChild(notification);
+                
+                // Show and hide the notification
+                setTimeout(() => {
+                    notification.style.opacity = '1';
+                    setTimeout(() => {
+                        notification.style.opacity = '0';
+                        setTimeout(() => {
+                            if (document.body.contains(notification)) {
+                                document.body.removeChild(notification);
+                            }
+                        }, 300);
+                    }, 2000);
+                }, 100);
+            }
+        }
+        
+        function downloadHTML() {
+            if (workspace) {
+                // Check if there's an html_block at the top level
+                let fullDocumentBlock = workspace.getTopBlocks().find(block => block.type === 'html_block');
+                let htmlOutput = '';
+                
+                if (fullDocumentBlock) {
+                    // If there's an html_block, use its output directly
+                    htmlOutput = htmlGenerator.blockToCode(fullDocumentBlock);
+                } else {
+                    // Otherwise, collect individual elements and wrap them
+                    let bodyContent = '';
+                    const topBlocks = workspace.getTopBlocks();
+                    topBlocks.forEach(block => {
+                        if (block.type !== 'css_block') {
+                            bodyContent += htmlGenerator.blockToCode(block);
+                        }
+                    });
+                    
+                    // Create a proper HTML document structure
+                    htmlOutput = `<!DOCTYPE html>\n<html>\n<head>\n  <link rel="stylesheet" href="styles.css">\n</head>\n<body>\n${bodyContent}</body>\n</html>`;
+                }
+                
+                // Generate CSS
+                generatedCss = '';
+                const cssBlocks = workspace.getAllBlocks().filter(block => block.type === 'css_block');
+                cssBlocks.forEach(block => {
+                    generatedCss += htmlGenerator.blockToCode(block);
+                });
+                
+                // Download HTML file
+                const htmlBlob = new Blob([htmlOutput], { type: 'text/html' });
+                const htmlLink = document.createElement('a');
+                htmlLink.href = URL.createObjectURL(htmlBlob);
+                htmlLink.download = 'index.html';
+                document.body.appendChild(htmlLink);
+                htmlLink.click();
+                document.body.removeChild(htmlLink);
+
+                // Download CSS file if present
+                if (generatedCss) {
+                    const cssBlob = new Blob([generatedCss], { type: 'text/css' });
+                    const cssLink = document.createElement('a');
+                    cssLink.href = URL.createObjectURL(cssBlob);
+                    cssLink.download = 'styles.css';
+                    document.body.appendChild(cssLink);
+                    cssLink.click();
+                    document.body.removeChild(cssLink);
+                }
+            } else {
+                console.error("Workspace not initialized");
+            }
+        }
+
+        // Function to inject theme-specific styles to override Blockly defaults
+        function injectThemeStyles(isDarkMode) {
+            // Remove any previous injected styles
+            const oldStyle = document.getElementById('dynamic-theme-styles');
+            if (oldStyle) {
+                oldStyle.remove();
+            }
+            
+            // Create a new style element
+            const styleEl = document.createElement('style');
+            styleEl.id = 'dynamic-theme-styles';
+            
+            // Set the CSS content based on theme
+            if (isDarkMode) {
+                styleEl.textContent = `
+                    .blocklyToolboxDiv {
+                        background-color: #2d2d2d !important;
+                        color: #f0f0f0 !important;
+                    }
+                    .blocklyTreeRow {
+                        background-color: #2d2d2d !important;
+                        color: #f0f0f0 !important;
+                        padding: 5px !important;
+                    }
+                    .blocklyTreeLabel {
+                        color: #f0f0f0 !important;
+                        font-weight: normal !important;
+                    }
+                    .blocklyTreeRow:hover {
+                        background-color: #3d3d3d !important;
+                    }
+                    .blocklyTreeSelected {
+                        background-color: #3d3d3d !important;
+                    }
+                    .blocklyTreeSeparator {
+                        border-color: #444 !important;
+                    }
+                `;
+            } else {
+                styleEl.textContent = `
+                    .blocklyToolboxDiv {
+                        background-color: transparent !important;
+                        color: #000000 !important;
+                        border: none !important;
+                    }
+                    .blocklyTreeRow {
+                        background-color: transparent !important;
+                        color: #000000 !important;
+                        padding: 5px !important;
+                        margin: 4px 0 !important;
+                        border-radius: 6px !important;
+                    }
+                    .blocklyTreeLabel {
+                        color: #000000 !important;
+                        font-weight: normal !important;
+                    }
+                    .blocklyTreeRow:hover {
+                        background-color: rgba(0,0,0,0.05) !important;
+                    }
+                    .blocklyTreeSelected {
+                        background-color: rgba(0,0,0,0.08) !important;
+                    }
+                    .blocklyTreeSeparator {
+                        border-color: transparent !important;
+                    }
+                `;
+            }
+            
+            // Add the style element to the head
+            document.head.appendChild(styleEl);
+        }
+        
+        function toggleTheme() {
+            // Get current theme state before toggling
+            const body = document.body;
+            const isDarkMode = !body.classList.contains('dark-mode');
+            
+            // Toggle dark mode class on body
+            body.classList.toggle('dark-mode');
+            
+            // Toggle dark mode on UI elements
+            const elements = document.querySelectorAll('.sidebar, .main, #preview, textarea, #codeOutput, .btn, .toggle-btn, .resizer');
+            elements.forEach(element => element.classList.toggle('dark-mode'));
+            
+            // Save preference
+            localStorage.setItem('darkMode', isDarkMode);
+            
+            // Apply Blockly theme
+            workspace.setTheme(isDarkMode ? darkTheme : lightTheme);
+            
+            // Inject theme-specific styles
+            injectThemeStyles(isDarkMode);
+            
+            // Refresh any circles
+            setTimeout(addCategoryCircles, 100);
+            
+            // Update displays
+            Blockly.svgResize(workspace);
+            updateOutputs();
+        }
+
+        function toggleMainArea() {
+            const mainArea = document.querySelector('.main');
+            const toggleButton = document.querySelector('.main-toggle');
+            const sidebar = document.querySelector('.sidebar');
+            const isCollapsing = !mainArea.classList.contains('collapsed');
+            
+            // If we're collapsing, store the current width before expanding
+            if (isCollapsing) {
+                sidebar.dataset.prevWidth = sidebar.style.width || '';
+            }
+            
+            mainArea.classList.toggle('collapsed');
+            toggleButton.classList.toggle('collapsed');
+            sidebar.classList.toggle('expanded');
+            
+            // If we're expanding, restore the previous width
+            if (!isCollapsing && sidebar.dataset.prevWidth) {
+                sidebar.style.width = sidebar.dataset.prevWidth;
+            } else if (isCollapsing) {
+                // If collapsing, remove any inline width to allow full expansion
+                sidebar.style.width = '';
+            }
+            
+            // Update button text based on state
+            toggleButton.title = isCollapsing ? "Show Output" : "Hide Output";
+            
+            // Save state to localStorage
+            localStorage.setItem('mainAreaCollapsed', isCollapsing);
+            
+            // Resize the Blockly workspace to fit the new container size
+            setTimeout(() => {
+                Blockly.svgResize(workspace);
+            }, 300); // Small delay to allow CSS transitions to complete
+        }
+
+        function toggleCssOutput() {
+            const cssOutputContainer = document.getElementById('cssOutputContainer');
+            cssOutputContainer.classList.toggle('collapsed');
+            const toggleButton = document.querySelector('.toggle-btn');
+            toggleButton.classList.toggle('collapsed');
+            const cssColumn = document.querySelector('.output-column.css-column');
+            cssColumn.classList.toggle('collapsed');
+            const htmlColumn = document.querySelector('.output-column.html-column');
+            htmlColumn.classList.toggle('expanded');
+            
+            // Update button text based on state
+            const isCollapsed = cssColumn.classList.contains('collapsed');
+            toggleButton.title = isCollapsed ? "Show CSS Output" : "Hide CSS Output";
+        }
+
+        // Sidebar resizing functionality
+        function initResizer() {
+            const resizer = document.querySelector('.resizer');
+            const sidebar = document.querySelector('.sidebar');
+            const main = document.querySelector('.main');
+            let isResizing = false;
+            let lastDownX = 0;
+
+            // Apply dark mode to resizer if needed
+            if (document.body.classList.contains('dark-mode')) {
+                resizer.classList.add('dark-mode');
+            }
+
+            resizer.addEventListener('mousedown', (e) => {
+                isResizing = true;
+                lastDownX = e.clientX;
+                resizer.classList.add('active');
+                document.addEventListener('mousemove', handleMouseMove);
+                document.addEventListener('mouseup', stopResize);
+                // Prevent text selection during resize
+                document.body.style.userSelect = 'none';
+                e.preventDefault();
+            });
+
+            function handleMouseMove(e) {
+                if (!isResizing) return;
+                
+                // Calculate new width directly from mouse position
+                const newWidth = e.clientX;
+                const windowWidth = window.innerWidth;
+                
+                // Enforce min and max width constraints (10% to 80% of window width)
+                if (newWidth >= windowWidth * 0.1 && newWidth <= windowWidth * 0.8) {
+                    sidebar.style.width = `${newWidth}px`;
+                    
+                    // Trigger Blockly resize to update the workspace
+                    if (window.Blockly && workspace) {
+                        Blockly.svgResize(workspace);
+                    }
+                }
+            }
+
+            function stopResize() {
+                isResizing = false;
+                resizer.classList.remove('active');
+                document.removeEventListener('mousemove', handleMouseMove);
+                document.removeEventListener('mouseup', stopResize);
+                document.body.style.userSelect = '';
+            }
+
+            // Handle window resize
+            window.addEventListener('resize', () => {
+                // If sidebar width is percentage-based, convert to pixels to maintain proportion
+                if (sidebar.style.width.includes('%')) {
+                    const percentage = parseFloat(sidebar.style.width) / 100;
+                    sidebar.style.width = `${window.innerWidth * percentage}px`;
+                }
+                
+                // Trigger Blockly resize
+                if (window.Blockly && workspace) {
+                    Blockly.svgResize(workspace);
+                }
+            });
+        }
+    </script>
+</body>
+</html>
