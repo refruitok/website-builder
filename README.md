@@ -1,4 +1,4 @@
-# 🧱 Blockly Web Builder
+# 🧱 Super Web Builder
 
 **Blockly Web Builder** is a drag-and-drop visual editor for generating HTML and CSS using [Blockly](https://developers.google.com/blockly). It allows users—especially beginners and students—to construct web pages visually without needing to write raw code.
 
