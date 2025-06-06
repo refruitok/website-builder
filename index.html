@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Blockly Web Builder</title>
+    <title>Super Webpage Builder</title>
 
     <!-- External Libraries -->
-    <script src="https://unpkg.com/blockly@10.4.3/blockly.min.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@3.4.1/dist/css/bootstrap.min.css">
+    <script src="blockly.min.js"></script>
+    <link rel="stylesheet" href="bootstrap.min.css">
 
     <!-- Styles -->
     <style>
@@ -19,7 +19,17 @@
             font-family: Arial, sans-serif;
             transition: background-color 0.3s, color 0.3s;
         }
-        
+        h2.title{
+            font-size:1.2em;
+            color:darkgray
+        }
+        h3.title {
+            margin: 0;
+            font-size: 1em;
+            display: flex;
+            align-items: center;
+            color:darkgray
+        }      
         .content-wrapper {
             display: flex;
             flex: 1;
@@ -206,12 +216,7 @@
             width: 100%;
         }
         
-        h3 {
-            margin: 0;
-            font-size: 1.2em;
-            display: flex;
-            align-items: center;
-        }
+
         
         .preview-container {
             position: relative;
@@ -225,7 +230,7 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            color: #999;
+            color:darkgray;
             font-size: 1.2em;
             pointer-events: none;
             text-align: center;
@@ -502,7 +507,7 @@
 <body>
     <!-- Top Bar -->
     <div id="top-bar" class="top-bar">
-        <h2>Blockly Web Builder</h2>
+        <h2 class="title">Super Web Builder</h2>
 
         <div class="top-bar-buttons">
             <button onclick="newProject()" class="btn btn-danger" title="Clear workspace and start fresh">New Project</button>
@@ -531,7 +536,7 @@
         <div class="output-container">
             <div class="output-column html-column">
                 <div class="output-section-header">
-                    <h3>HTML Output</h3>
+                    <h3 class="title">HTML Output</h3>
                     <div class="header-actions">
                         <button onclick="copyHtmlCode()" class="btn btn-success copy-html-btn" title="Copy HTML">Copy HTML</button>
                         <button class="toggle-btn" onclick="toggleCssOutput()" title="Toggle CSS Output">CSS <span class="toggle-icon">&#x25BA;</span></button>
@@ -541,7 +546,7 @@
             </div>
             <div class="output-column css-column">
                 <div class="output-header">
-                    <h3>CSS Output</h3>
+                    <h3 class="title">CSS Output</h3>
                     <button onclick="copyCssCode()" class="btn btn-success copy-css-btn" title="Copy CSS">Copy CSS</button>
                 </div>
                 <div id="cssOutputContainer" class="css-output-container">
